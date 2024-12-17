@@ -1,16 +1,18 @@
 import json
 
+from consts import files_path
+
 class Structure(object):
     def __init__(self) -> None:
         self.__geojson_dict = {}
         self.__geojson_features = {}
 
     def load_geojson(self):
-        main_path = "C:/Users/carol/Documents/GitHub/urban-planner/public"
+        # main_path = "C:/Users/carol/Documents/GitHub/urban-planner/public"
         files = [
-            {"var_name" : "tmin", "path": f"{main_path}/Yearly_tmin_round.json"},
-            {"var_name" : "tmax", "path": f"{main_path}/Yearly_tmax_round.json"},
-            {"var_name" : "prcp", "path": f"{main_path}/Yearly_prcp_round.json"},
+            {"var_name" : "tmin", "path": f"{files_path}/Yearly_tmin_round.json"},
+            {"var_name" : "tmax", "path": f"{files_path}/Yearly_tmax_round.json"},
+            {"var_name" : "prcp", "path": f"{files_path}/Yearly_prcp_round.json"},
             ]
 
         for file in files:
