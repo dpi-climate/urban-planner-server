@@ -20,8 +20,8 @@ def handle_geojson_data():
     var_name = request.args["var_name"]
     print(var_name, 1)
     gjson = structure.get_geojson_data(var_name)
-    print(var_name, 2)
 
+    # return json.dumps(gjson)
     return jsonify(gjson)
 
 @app.route("/point_feature", methods=("GET",))
@@ -43,7 +43,7 @@ def main():
     #     print("Error: --data not specified.")
     #     exit(1)
 
-    structure.load_geojson()
+    structure.process_files()
     app.run()
 
 if __name__ == '__main__':
