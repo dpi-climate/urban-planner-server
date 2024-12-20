@@ -47,6 +47,7 @@ def main():
 
     # structure.process_files()
     structure.load_data()
+    structure.load_risk()
     print("Go!")
     app.run()
     print()
