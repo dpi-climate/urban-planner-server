@@ -45,7 +45,7 @@ main_path = "./files"
 geojson_file = f"{main_path}/Illinois_prcp_risks_round.json"
 feather_file = f"{main_path}/Illinois_prcp_risks_round.feather"
 
-selected_columns = ['1980', 'risk_2yr (', 'risk_5yr (', 'risk_10yr', 'risk_25yr', 'risk_50yr', 'risk_100yr', 'risk_200yr', 'risk_500yr']
+selected_columns = ['risk_2yr (', 'risk_5yr (', 'risk_10yr', 'risk_25yr', 'risk_50yr', 'risk_100yr', 'risk_200yr', 'risk_500yr']
 
 # geojson_to_feather(geojson_file, feather_file)
 geojson_to_feather(geojson_file, feather_file, include_geometry=False, selected_columns=selected_columns)

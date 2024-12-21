@@ -45,18 +45,18 @@ class Structure(object):
             print(f"No data found for name: {name} and year: {year}")
             return None
     
-    def build_risk_chart_data(self, index):
+    def get_risk_data(self, index):
+        formatted_data = []
         properties_of_interest = ['risk_2yr (', 'risk_5yr (', 'risk_10yr', 'risk_25yr', 'risk_50yr', 'risk_100yr', 'risk_200yr', 'risk_500yr']
-
+        
         if index in self.__risk_df.index:
-            # Extract the properties for the specified index
             extracted_row = self.__risk_df.loc[index, properties_of_interest]
-            print(f"Extracted properties for index {index}:")
-            print(extracted_row)
-
+            formatted_data = [{"year": column, "value": value} for column, value in extracted_row.items()]
 
         else:
             print(f"Index {index} does not exist in the DataFrame.")
+
+        return formatted_data
     
     def get_geojson_data(self, var_name):
         return self.__geojson_binary[var_name]

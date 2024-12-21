@@ -28,8 +28,8 @@ def get_props():
     feather_file = "./files/Illinois_prcp_risks_round.feather"
     df = pd.read_feather(feather_file)
 
-    properties_of_interest = ['1980', 'risk_2yr (', 'risk_5yr (', 'risk_10yr', 'risk_25yr', 'risk_50yr', 'risk_100yr', 'risk_200yr', 'risk_500yr']
-    index_to_extract = 18742
+    properties_of_interest = ['risk_2yr (', 'risk_5yr (', 'risk_10yr', 'risk_25yr', 'risk_50yr', 'risk_100yr', 'risk_200yr', 'risk_500yr']
+    index_to_extract = 122359
 
     if index_to_extract in df.index:
         # Extract the properties for the specified index
@@ -40,7 +40,7 @@ def get_props():
         formatted_data = [{"year": column, "value": value} for column, value in extracted_row.items()]
 
         print(f"Formatted data for index {index_to_extract}:")
-        print(formatted_data)
+        # print(formatted_data)
 
     else:
         print(f"Index {index_to_extract} does not exist in the DataFrame.")

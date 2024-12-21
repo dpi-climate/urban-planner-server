@@ -26,10 +26,16 @@ def handle_geojson_data():
     # return json.dumps(gjson)
     return jsonify(binary)
 
-@app.route("/point_feature", methods=("GET",))
+@app.route("/risk_data", methods=("GET",))
 def handle_point_feature():
-    pt_feature = structure.get_point_feature("tmin")
-    return jsonify(pt_feature)
+    point_index = request.args["pt_idx"]
+    risk_data = structure.get_risk_data(int(point_index))
+    return jsonify(risk_data)
+
+# @app.route("/point_feature", methods=("GET",))
+# def handle_point_feature():
+#     pt_feature = structure.get_point_feature("tmin")
+#     return jsonify(pt_feature)
 
 def main():
     # global workdir
