@@ -15,7 +15,9 @@ def default():
 
     # Extract specific properties (e.g., 'property_name1', 'property_name2')
     # Replace 'property_name1', 'property_name2' with the actual column names
-    properties_of_interest = ['property_name1', 'property_name2']
+    # properties_of_interest = ['property_name1', 'property_name2']
+    properties_of_interest = ['risk_2yr (', 'risk_5yr (', 'risk_10yr', 'risk_25yr', 'risk_50yr', 'risk_100yr', 'risk_200yr', 'risk_500yr', 'latitude', 'longitude']
+
     if all(prop in df.columns for prop in properties_of_interest):
         extracted_data = df[properties_of_interest]
         print("\nExtracted Properties:")
@@ -28,7 +30,7 @@ def get_props():
     feather_file = "./files/Illinois_prcp_risks_round.feather"
     df = pd.read_feather(feather_file)
 
-    properties_of_interest = ['risk_2yr (', 'risk_5yr (', 'risk_10yr', 'risk_25yr', 'risk_50yr', 'risk_100yr', 'risk_200yr', 'risk_500yr']
+    properties_of_interest = ['risk_2yr (', 'risk_5yr (', 'risk_10yr', 'risk_25yr', 'risk_50yr', 'risk_100yr', 'risk_200yr', 'risk_500yr', 'latitude', 'longitude']
     index_to_extract = 122359
 
     if index_to_extract in df.index:
@@ -45,6 +47,6 @@ def get_props():
     else:
         print(f"Index {index_to_extract} does not exist in the DataFrame.")
 
-# default()
+default()
 print("#####")
 get_props()

@@ -1,6 +1,6 @@
 import numpy as np
 import json
-from consts import files_path, thresholds, binary_data_dir, variables
+from consts import files_path, binary_data_dir
 import pickle
 import os
 from collections import defaultdict

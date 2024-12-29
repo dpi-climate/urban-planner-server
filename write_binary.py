@@ -1,6 +1,6 @@
 import numpy as np
 import json
-from consts import files_path, thresholds, binary_data_dir, variables
+from consts import files_path, binary_data_dir
 import pickle
 import os
 from collections import defaultdict
@@ -236,16 +236,17 @@ prcp_colors = np.array([[255,255,255],
 
 # temp_threshold = build_threshold_hex(temp_range, temp_colors)
 temp_threshold = build_threshold_rgba(temp_range, temp_colors)
-temp_threshold = build_threshold_rgba(temp_range, temp_colors)
 prcp_threshold = build_threshold_rgba(prcp_range_mm, prcp_colors)
 
 # List of files
 geojson_files = [
     {"var_name": "tmin", "path": f"{files_path}/Yearly_tmin_round.json", "threshold": temp_threshold},
     {"var_name": "tmax", "path": f"{files_path}/Yearly_tmax_round.json", "threshold": temp_threshold},
-    # {"var_name": "prcp", "path": f"{files_path}/Illinois_prcp_risks_round.json", "threshold": prcp_threshold},
+    {"var_name": "prcp", "path": f"{files_path}/Illinois_prcp_risks_round.json", "threshold": prcp_threshold},
 ]
 
 
 process_files(geojson_files)
+
+
 
