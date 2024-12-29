@@ -6,7 +6,7 @@ import pandas as pd
 import re
 import numpy as np
 import struct
-
+import json
 class Structure(object):
     def __init__(self) -> None:
         self.__binary = {}
@@ -100,53 +100,100 @@ class Structure(object):
             self.__risk_df['latitude'] = self.__risk_df['latitude'].astype(float)
             self.__risk_df['longitude'] = self.__risk_df['longitude'].astype(float)
     
-    # def get_points(self, name, year, s_agg):
-    #     try:
-    #         return self.__binary[s_agg][name][year]
-    #     except KeyError:
-    #         print(f"No data found for name: {name} and year: {year}")
-    #         return None
-
     def get_points(self, name, year, s_agg):
         """
-        Return the raw binary data for points if it exists.
-        We'll pack:
-            - 4 bytes: an unsigned int for 'length'
-            - positions as float32s
-            - colors as 8-bit unsigned bytes
+        Return binary data for both points (s_agg == "") and polygons (s_agg == "ct").
         """
+        print("[Structure - get_points] ", name, year, s_agg)
         try:
             data = self.__binary[s_agg][name][year]
         except KeyError:
-            print(f"No data found for name: {name} and year: {year}")
+            print(f"No data found for name: {name}, year: {year}, s_agg: {s_agg}")
             return None
-        
+
         if not data:
-            print(f"Data for {name}-{year} {s_agg} is empty.")
+            print(f"Data for {name}-{year}-{s_agg} is empty.")
             return None
-        print(data.keys())
-        # 'data' is expected to have at least: length, positions, colors
-        length = data["length"]              # number of points
-        positions = data["positions"]        # e.g., [x1, y1, x2, y2, ...]
-        colors = data["colors"]             # e.g., [r1, g1, b1, a1, r2, g2, ...]
 
-        # 1) 4 bytes header for the length (unsigned int in little-endian)
-        header = struct.pack("<I", length)
+        # ---------------------------
+        # CASE 1: Points (s_agg == "")
+        # ---------------------------
+        if s_agg == "":
+            # Expect fields: {"length": int, "positions": [...], "colors": [...]}
+            length = data["length"]
+            positions = data["positions"]
+            colors = data["colors"]
+            # ids = data["ids"]
+            # values = data["values"]
 
-        # 2) Pack positions as float32. The format is "<" (little-endian),
-        #    then N "f" for each float. e.g. if positions has 2*N floats, we do:
-        pos_fmt = f"<{len(positions)}f"
-        pos_bin = struct.pack(pos_fmt, *positions)
+            header = struct.pack("<I", length)  # 4 bytes (little-endian)
+            
+            pos_fmt = f"<{len(positions)}f"
+            pos_bin = struct.pack(pos_fmt, *positions)
+            
+            col_fmt = f"<{len(colors)}B"
+            col_bin = struct.pack(col_fmt, *colors)
 
-        # 3) Pack colors as 8-bit unsigned bytes (B)
-        col_fmt = f"<{len(colors)}B"
-        col_bin = struct.pack(col_fmt, *colors)
+            # ids_fmt = f"<{len(ids)}f"
+            # ids_bin = struct.pack(ids_fmt, *ids)
 
-        # Concatenate all
-        final_data = header + pos_bin + col_bin
-        
-        return final_data
-    
+            # values_fmt = f"<{len(values)}f"
+            # values_bin = struct.pack(values_fmt, *values)
+
+            final_data = header + pos_bin + col_bin #+ ids_bin + values_bin
+
+            return final_data
+
+        # ---------------------------
+        # CASE 2: Polygons (s_agg == "ct")
+        # ---------------------------
+        elif s_agg == "ct":
+            # data format: { "tracts": [ { "GEOID": str, "average_value": float,
+            #                             "color": [r,g,b,a],
+            #                             "geometry": {...} }, ... ] }
+
+            tracts = data["tracts"]
+            num_tracts = len(tracts)
+
+            # 1) pack the number of tracts (4 bytes)
+            buffer_list = [struct.pack("<I", num_tracts)]
+
+            # 2) for each tract, pack the fields
+            for tract in tracts:
+                geo_id = tract["GEOID"]
+                avg_val = tract["average_value"]
+                color = tract["color"]  # [r,g,b,a]
+                geometry_dict = tract["geometry"]
+
+                # i) GEOID as UTF-8 bytes
+                geo_id_bytes = geo_id.encode("utf-8")
+                geo_id_len = len(geo_id_bytes)
+                buffer_list.append(struct.pack("<I", geo_id_len))  # length of GEOID
+                buffer_list.append(geo_id_bytes)                    # actual GEOID bytes
+
+                # ii) average_value (float32)
+                buffer_list.append(struct.pack("<f", avg_val))
+
+                # iii) color (4 bytes)
+                # color is likely [int, int, int, int], each 0-255
+                buffer_list.append(struct.pack("<BBBB", *color))
+
+                # iv) geometry as JSON string
+                geom_str = json.dumps(geometry_dict)  # e.g. {"type":"Polygon","coordinates":[...]}
+                geom_bytes = geom_str.encode("utf-8")
+                geom_len = len(geom_bytes)
+                buffer_list.append(struct.pack("<I", geom_len))
+                buffer_list.append(geom_bytes)
+
+            # Combine everything
+            final_data = b"".join(buffer_list)
+            return final_data
+
+        else:
+            # Unknown s_agg
+            print(f"Unhandled s_agg='{s_agg}' - returning None.")
+            return None
+
     @staticmethod
     def haversine_distance(lat1, lon1, lat2, lon2):
         """
@@ -175,59 +222,59 @@ class Structure(object):
         return distance
 
     def get_risk_data(self, identifier):
-        """
-        Retrieve risk data by index or by the nearest point to given lat/lon.
-        
-        Parameters:
-            identifier: int (index) or tuple (lat, lon)
-        
-        Returns:
-            List of risk data dictionaries.
-        """
-        formatted_data = []
-        properties_of_interest = [
-            'risk_2yr (', 'risk_5yr (', 'risk_10yr',
-            'risk_25yr', 'risk_50yr', 'risk_100yr',
-            'risk_200yr', 'risk_500yr'
-        ]
-        digit_pattern = re.compile(r'\d+')  # Compile the regex once
-        
-        if isinstance(identifier, int):  # If identifier is an index
-            if identifier in self.__risk_df.index:
-                extracted_row = self.__risk_df.loc[identifier, properties_of_interest]
-                formatted_data = [
-                    {"year": digit_pattern.search(column).group(), "value": value}
-                    for column, value in extracted_row.items()
-                ]
-            else:
-                print(f"Index {identifier} does not exist in the DataFrame.")
-        
-        elif isinstance(identifier, tuple) and len(identifier) == 2:  # If identifier is a lat/lon pair
-            lat, lon = identifier
+            """
+            Retrieve risk data by index or by the nearest point to given lat/lon.
             
-            if 'latitude' in self.__risk_df.columns and 'longitude' in self.__risk_df.columns:
-                # Extract all latitudes and longitudes
-                latitudes = self.__risk_df['latitude'].values
-                longitudes = self.__risk_df['longitude'].values
+            Parameters:
+                identifier: int (index) or tuple (lat, lon)
+            
+            Returns:
+                List of risk data dictionaries.
+            """
+            formatted_data = []
+            properties_of_interest = [
+                'risk_2yr (', 'risk_5yr (', 'risk_10yr',
+                'risk_25yr', 'risk_50yr', 'risk_100yr',
+                'risk_200yr', 'risk_500yr'
+            ]
+            digit_pattern = re.compile(r'\d+')  # Compile the regex once
+            
+            if isinstance(identifier, int):  # If identifier is an index
+                if identifier in self.__risk_df.index:
+                    extracted_row = self.__risk_df.loc[identifier, properties_of_interest]
+                    formatted_data = [
+                        {"year": digit_pattern.search(column).group(), "value": value}
+                        for column, value in extracted_row.items()
+                    ]
+                else:
+                    print(f"Index {identifier} does not exist in the DataFrame.")
+            
+            elif isinstance(identifier, tuple) and len(identifier) == 2:  # If identifier is a lat/lon pair
+                lat, lon = identifier
                 
-                # Calculate distances using the Haversine formula
-                distances = self.haversine_distance(lat, lon, latitudes, longitudes)
-                
-                # Find the index of the nearest point
-                nearest_index = self.__risk_df.index[np.argmin(distances)]
-                
-                extracted_row = self.__risk_df.loc[nearest_index, properties_of_interest]
-                formatted_data = [
-                    {"year": digit_pattern.search(column).group(), "value": value}
-                    for column, value in extracted_row.items()
-                ]
+                if 'latitude' in self.__risk_df.columns and 'longitude' in self.__risk_df.columns:
+                    # Extract all latitudes and longitudes
+                    latitudes = self.__risk_df['latitude'].values
+                    longitudes = self.__risk_df['longitude'].values
+                    
+                    # Calculate distances using the Haversine formula
+                    distances = self.haversine_distance(lat, lon, latitudes, longitudes)
+                    
+                    # Find the index of the nearest point
+                    nearest_index = self.__risk_df.index[np.argmin(distances)]
+                    
+                    extracted_row = self.__risk_df.loc[nearest_index, properties_of_interest]
+                    formatted_data = [
+                        {"year": digit_pattern.search(column).group(), "value": value}
+                        for column, value in extracted_row.items()
+                    ]
+                else:
+                    print("Latitude and longitude columns are not available in the DataFrame.")
+            
             else:
-                print("Latitude and longitude columns are not available in the DataFrame.")
-        
-        else:
-            print("Invalid identifier. Must be an integer index or a tuple (lat, lon).")
-        
-        return formatted_data
+                print("Invalid identifier. Must be an integer index or a tuple (lat, lon).")
+            
+            return formatted_data
 
   
 if __name__ == "__main__":

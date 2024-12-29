@@ -12,39 +12,23 @@ Compress(app)
 
 app.debug  = True
 
-
 structure = Structure()
-# structure.startServer()
-
 
 @app.route("/pt_layer_data", methods=("GET",))
 def handle_pt_layer_data():
+    
     s_agg = "" if "s_agg" not in request.args else request.args["s_agg"]
     var_name = request.args["var_name"]
     year = request.args["year"]
+    
     print(var_name, year, s_agg)
+    
     binary = structure.get_points(var_name, year, s_agg)
-
-    # return json.dumps(gjson)
-    # return jsonify(binary)
     
     if binary is None:
         return jsonify({"error": "No data found"}), 404
 
     # Return the raw bytes with an octet-stream mimetype
-    return Response(binary, mimetype="application/octet-stream")
-
-@app.route("/pol_layer_data", methods=("GET",))
-def handle_pol_layer_data():
-    s_agg = "" if "s_agg" not in request.args else request.args["s_agg"]
-    var_name = request.args["var_name"]
-    year = request.args["year"]
-    print(var_name, year, s_agg)
-    binary = structure.get_points(var_name, year, s_agg)
-
-    if binary is None:
-        return jsonify({"error": "No data found"}), 404
-
     return Response(binary, mimetype="application/octet-stream")
 
 @app.route("/risk_data", methods=("GET",))
@@ -60,11 +44,6 @@ def handle_point_feature():
     
     return jsonify(risk_data)
 
-
-# @app.route("/point_feature", methods=("GET",))
-# def handle_point_feature():
-#     pt_feature = structure.get_point_feature("tmin")
-#     return jsonify(pt_feature)
 
 def main():
     # global workdir
