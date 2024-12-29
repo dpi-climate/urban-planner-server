@@ -44,6 +44,11 @@ def handle_point_feature():
     
     return jsonify(risk_data)
 
+@app.route("/stations", methods=("GET",))
+def handle_stations():
+    stations = structure.get_stations()    
+    return jsonify(stations)
+
 
 def main():
     # global workdir
@@ -62,6 +67,7 @@ def main():
     # structure.process_files()
     structure.load_binary()
     structure.load_risk()
+    structure.load_stations()
     print("Go!")
     app.run()
     print()

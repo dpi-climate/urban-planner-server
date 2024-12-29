@@ -1,4 +1,4 @@
-from consts import binary_data_dir
+from consts import binary_data_dir, stations_file
 import pickle
 import os
 from collections import defaultdict
@@ -11,7 +11,7 @@ class Structure(object):
     def __init__(self) -> None:
         self.__binary = {}
         self.__risk_df = None
-    
+        self.__stations = None
     
     def load_points(self, file_group, prefix=''):
         data_dict = defaultdict(dict)
@@ -71,6 +71,10 @@ class Structure(object):
         self.__binary = all_data
         print(all_data.keys())
         # return all_data
+    
+    def load_stations(self):
+        with open(stations_file, 'r', encoding='utf-8') as f:
+            self.__stations = json.load(f)
     
     def load_points_old(self):
         data_dict = defaultdict(dict)  # Nested dictionary: data_dict[name][year] = data
@@ -276,7 +280,9 @@ class Structure(object):
             
             return formatted_data
 
-  
+    def get_stations(self):
+        return self.__stations
+    
 if __name__ == "__main__":
     structure = Structure()
     structure.load_points()

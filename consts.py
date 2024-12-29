@@ -2,6 +2,8 @@ import numpy as np
 
 files_path = "./files"
 
+stations_file = f"{files_path}/alt_fuel_stations.geojson"
+
 files = [
             {"var_name": "tmin", "path": f"{files_path}/Yearly_tmin_round.json"},
             {"var_name": "tmax", "path": f"{files_path}/Yearly_tmax_round.json"},
