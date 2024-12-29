@@ -1,12 +1,14 @@
 from flask_cors import CORS
-from flask import Flask, request, send_from_directory, jsonify
+from flask import Flask, request, send_from_directory, jsonify, Response
 import argparse
 import json
 
 from structure import Structure
+from flask_compress import Compress
 
 app = Flask(__name__)
 CORS(app)
+Compress(app)
 
 app.debug  = True
 
@@ -17,14 +19,20 @@ structure = Structure()
 
 @app.route("/pt_layer_data", methods=("GET",))
 def handle_pt_layer_data():
+    s_agg = "" if "s_agg" not in request.args else request.args["s_agg"]
     var_name = request.args["var_name"]
     year = request.args["year"]
-    print(var_name, year)
-    binary = structure.get_points(var_name, year, "")
-    print("sending point")
+    print(var_name, year, s_agg)
+    binary = structure.get_points(var_name, year, s_agg)
 
     # return json.dumps(gjson)
-    return jsonify(binary)
+    # return jsonify(binary)
+    
+    if binary is None:
+        return jsonify({"error": "No data found"}), 404
+
+    # Return the raw bytes with an octet-stream mimetype
+    return Response(binary, mimetype="application/octet-stream")
 
 @app.route("/pol_layer_data", methods=("GET",))
 def handle_pol_layer_data():
@@ -33,9 +41,11 @@ def handle_pol_layer_data():
     year = request.args["year"]
     print(var_name, year, s_agg)
     binary = structure.get_points(var_name, year, s_agg)
-    print("sending pol")
-    # return json.dumps(gjson)
-    return jsonify(binary)
+
+    if binary is None:
+        return jsonify({"error": "No data found"}), 404
+
+    return Response(binary, mimetype="application/octet-stream")
 
 @app.route("/risk_data", methods=("GET",))
 def handle_point_feature():

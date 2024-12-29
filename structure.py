@@ -4,9 +4,8 @@ import os
 from collections import defaultdict
 import pandas as pd
 import re
-from geopy.distance import geodesic
 import numpy as np
-from scipy.spatial.distance import cdist
+import struct
 
 class Structure(object):
     def __init__(self) -> None:
@@ -101,19 +100,52 @@ class Structure(object):
             self.__risk_df['latitude'] = self.__risk_df['latitude'].astype(float)
             self.__risk_df['longitude'] = self.__risk_df['longitude'].astype(float)
     
-    def get_points(self, name, year, s_agg):
-        try:
-            return self.__binary[s_agg][name][year]
-        except KeyError:
-            print(f"No data found for name: {name} and year: {year}")
-            return None
+    # def get_points(self, name, year, s_agg):
+    #     try:
+    #         return self.__binary[s_agg][name][year]
+    #     except KeyError:
+    #         print(f"No data found for name: {name} and year: {year}")
+    #         return None
 
-    def get_polygon_layer(self, name, year):
+    def get_points(self, name, year, s_agg):
+        """
+        Return the raw binary data for points if it exists.
+        We'll pack:
+            - 4 bytes: an unsigned int for 'length'
+            - positions as float32s
+            - colors as 8-bit unsigned bytes
+        """
         try:
-            return self.__binary[name][year]
+            data = self.__binary[s_agg][name][year]
         except KeyError:
             print(f"No data found for name: {name} and year: {year}")
             return None
+        
+        if not data:
+            print(f"Data for {name}-{year} {s_agg} is empty.")
+            return None
+        print(data.keys())
+        # 'data' is expected to have at least: length, positions, colors
+        length = data["length"]              # number of points
+        positions = data["positions"]        # e.g., [x1, y1, x2, y2, ...]
+        colors = data["colors"]             # e.g., [r1, g1, b1, a1, r2, g2, ...]
+
+        # 1) 4 bytes header for the length (unsigned int in little-endian)
+        header = struct.pack("<I", length)
+
+        # 2) Pack positions as float32. The format is "<" (little-endian),
+        #    then N "f" for each float. e.g. if positions has 2*N floats, we do:
+        pos_fmt = f"<{len(positions)}f"
+        pos_bin = struct.pack(pos_fmt, *positions)
+
+        # 3) Pack colors as 8-bit unsigned bytes (B)
+        col_fmt = f"<{len(colors)}B"
+        col_bin = struct.pack(col_fmt, *colors)
+
+        # Concatenate all
+        final_data = header + pos_bin + col_bin
+        
+        return final_data
     
     @staticmethod
     def haversine_distance(lat1, lon1, lat2, lon2):
