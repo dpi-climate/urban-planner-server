@@ -75,25 +75,6 @@ class Structure(object):
     def load_stations(self):
         with open(stations_file, 'r', encoding='utf-8') as f:
             self.__stations = json.load(f)
-    
-    def load_points_old(self):
-        data_dict = defaultdict(dict)  # Nested dictionary: data_dict[name][year] = data
-        
-        for filename in os.listdir(binary_data_dir):
-            if filename.endswith('.pickle'):
-                try:
-                    name, year_ext = filename.split('_')
-                    year = year_ext.split('.')[0]
-                    file_path = os.path.join(binary_data_dir, filename)
-                    
-                    with open(file_path, 'rb') as f:
-                        data = pickle.load(f)
-                    
-                    data_dict[name][year] = data
-
-                except Exception as e:
-                    print(f"Failed to load {filename}: {e}")
-        self.__binary = data_dict
 
     def load_risk(self):
         feather_file = "./files/Illinois_prcp_risks_round.feather"
