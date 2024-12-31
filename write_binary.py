@@ -289,7 +289,8 @@ prcp_colors = np.array([
 min_temp_threshold = build_threshold_rgba(min_temp_range, min_temp_colors)
 max_temp_threshold = build_threshold_rgba(max_temp_range, max_temp_colors)
 prcp_threshold = build_threshold_rgba(prcp_range_mm, prcp_colors)
-
+print(prcp_range_mm)
+print(prcp_threshold)
 # List of files
 geojson_files = [
     {"var_name": "tmin", "path": f"{files_path}/Illinois_tmin_round.json", "threshold": min_temp_threshold},
@@ -298,7 +299,7 @@ geojson_files = [
 ]
 
 
-process_files(geojson_files)
+# process_files(geojson_files)
 
 
 

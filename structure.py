@@ -69,7 +69,7 @@ class Structure(object):
             all_data[prefix] = group_data
         
         self.__binary = all_data
-        print(all_data.keys())
+
         # return all_data
     
     def load_stations(self):
@@ -108,10 +108,10 @@ class Structure(object):
             length = data["length"]
             positions = data["positions"]
             colors = data["colors"]
-            # ids = data["ids"]
-            # values = data["values"]
+            ids = data["ids"]
+            values = data["values"]
 
-            header = struct.pack("<I", length)  # 4 bytes (little-endian)
+            header = struct.pack("<I", length)
             
             pos_fmt = f"<{len(positions)}f"
             pos_bin = struct.pack(pos_fmt, *positions)
@@ -119,13 +119,24 @@ class Structure(object):
             col_fmt = f"<{len(colors)}B"
             col_bin = struct.pack(col_fmt, *colors)
 
-            # ids_fmt = f"<{len(ids)}f"
-            # ids_bin = struct.pack(ids_fmt, *ids)
+            ids_fmt = f"<{len(ids)}I"
+            ids_bin = struct.pack(ids_fmt, *ids)
 
-            # values_fmt = f"<{len(values)}f"
-            # values_bin = struct.pack(values_fmt, *values)
+            buffer_values = [struct.pack("<I", len(values))]
 
-            final_data = header + pos_bin + col_bin #+ ids_bin + values_bin
+            for val in values:
+                if val is None:
+                    # 0 indicates None
+                    buffer_values.append(struct.pack("<B", 0))
+                else:
+                    # 1 indicates a valid float
+                    buffer_values.append(struct.pack("<B", 1))
+                    buffer_values.append(struct.pack("<f", val))
+
+            values_bin = b"".join(buffer_values)
+
+            final_data = header + pos_bin + col_bin + ids_bin + values_bin
+
 
             return final_data
 
