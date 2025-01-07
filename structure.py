@@ -1,4 +1,4 @@
-from consts import binary_data_dir, stations_file
+from consts import STATIONS_FILE, CLIMATE_VARIABLES, CLIMATE_TIME_STAMPS, SOCIO_SPATIAL_LEVELS, RISK_FILE, CLIMATE_SPATIAL_LEVELS, processed_climate_files_dir, processed_bound_files_dir, socio_vars, processed_socio_dir, click_boundary_file, boundaries_list
 import pickle
 import os
 from collections import defaultdict
@@ -7,13 +7,23 @@ import re
 import numpy as np
 import struct
 import json
+import geopandas as gpd
+
 class Structure(object):
     def __init__(self) -> None:
-        self.__binary = {}
+        self.__boundary_layers = {}
+        self.__climate_layers = {}
         self.__risk_df = None
+        
         self.__stations = None
+        
+        self.__socio_df = None
+        self.__socio_gdf = None
+        self.__socio_list = []
+
+    ########################  LOAD FUNCTIONS #################################################
     
-    def load_points(self, file_group, prefix=''):
+    def __load_climate_spatial_level(self, file_group, prefix=''):
         data_dict = defaultdict(dict)
         
         for filename in file_group:
@@ -33,7 +43,7 @@ class Structure(object):
                             continue
                         name, year = parts
                     
-                    file_path = os.path.join(binary_data_dir, filename)
+                    file_path = os.path.join(processed_climate_files_dir, filename)
                     with open(file_path, 'rb') as f:
                         data = pickle.load(f)
                     
@@ -44,54 +54,152 @@ class Structure(object):
         
         return data_dict
     
-    def load_binary(self):
-        all_files = [f for f in os.listdir(binary_data_dir) if f.endswith('.pickle')]
+    def load_boundary_layers(self):
+        boundaries = {}
+
+        for b in boundaries_list:
+            id = b.get("id")
+
+            if id == "None":
+                continue
+
+            print(f"Processing boundary {id}")
+            
+            file_path = os.path.join(processed_bound_files_dir, f"bound_{id}.pickle")
+            
+            with open(file_path, 'rb') as f:
+                data = pickle.load(f)
+
+            boundaries[id] = data
+
+        self.__boundary_layers = boundaries
+        
+    def load_climate_layers(self):
+        # all_files = [f for f in os.listdir(processed_climate_files_dir) if f.endswith('.pickle')]
+        spatial_level_ids = [sp.get("id") for sp in CLIMATE_SPATIAL_LEVELS]
+        
+        all_files = [
+            f for f in os.listdir(processed_climate_files_dir)
+            if f.endswith('.pickle') and any(f.startswith(prefix + '_') for prefix in spatial_level_ids)
+        ]
+
         groups = defaultdict(list)
         
         for filename in all_files:
-            name_year = filename[:-7]
-            parts = name_year.split('_')
-            
-            if len(parts) == 3:
-                prefix = parts[0]
-            elif len(parts) == 2:
-                prefix = ''
-            else:
-                print(f"Unexpected filename format: {filename}")
-                continue
+            group_name_time = filename[:-7]
+            parts = group_name_time.split('_')
+            prefix = parts[0]
             
             groups[prefix].append(filename)
         
         all_data = {}
+        
         for prefix, file_group in groups.items():
             print(f"Processing group with prefix '{prefix}' containing {len(file_group)} files.")
-            group_data = self.load_points(file_group, prefix)
+            group_data = self.__load_climate_spatial_level(file_group, prefix)
             all_data[prefix] = group_data
         
-        self.__binary = all_data
-
-        # return all_data
+        self.__climate_layers = all_data
     
-    def load_stations(self):
-        with open(stations_file, 'r', encoding='utf-8') as f:
-            self.__stations = json.load(f)
-
-    def load_risk(self):
-        feather_file = "./files/Illinois_prcp_risks_round.feather"
-        df = pd.read_feather(feather_file)
+    def load_risk_df(self):
+        df = pd.read_feather(RISK_FILE)
         self.__risk_df = df
 
         if 'latitude' in self.__risk_df.columns and 'longitude' in self.__risk_df.columns:
             self.__risk_df['latitude'] = self.__risk_df['latitude'].astype(float)
             self.__risk_df['longitude'] = self.__risk_df['longitude'].astype(float)
     
-    def get_points(self, name, year, s_agg):
+    def load_socio_df(self):
+        level_list = [sp.get("id") for sp in SOCIO_SPATIAL_LEVELS]
+        my_dict = {}
+
+        for level in level_list:
+            feather_file = f"./{processed_socio_dir}/{level}_socio.feather"
+            df = pd.read_feather(feather_file)
+            my_dict[level] = df
+        
+        self.__socio_df = my_dict
+    
+    def load_socio_gdf(self): # to do 
+        pass
+        # socio_list = [
+        #     {"id": "ct", "name": "Census Tract"}, 
+        #     {"id": "bg", "name": "Block Level"}
+        # ]
+
+        # boundaries = {}
+
+        # for b in boundaries_list:
+        #     print(f"Processing boundary {b.get("id")}")
+        #     id = b.get("id")
+        #     boundaries[b.get("id")] = None
+            
+        #     file_path = os.path.join(processed_bound_files_dir, f"bound_{id}.pickle")
+        #     with open(file_path, 'rb') as f:
+        #         data = pickle.load(f)
+
+        #     boundaries[id] = data
+
+        # boundaries_list.insert(0, {"id": "None", "name": "No Boundaries"})
+        
+        # self.__boundaries_list = boundaries_list
+        # self.__boundary_layers = boundaries
+   
+    def load_stations_layer(self):
+        with open(STATIONS_FILE, 'r', encoding='utf-8') as f:
+            self.__stations = json.load(f)
+    
+    ########################  GET FUNCTIONS ################################################
+
+    def get_boundary(self, boundary_id): # maybe preprocess this
+        print(f"[Structure - get_boundary] {boundary_id}")
+
+        data = self.__boundary_layers[boundary_id]
+
+        features = data["features"]
+        num_features = len(features)
+
+        # Pack the number of features (4 bytes)
+        buffer_list = [struct.pack("<I", num_features)]
+
+        # For each feature, pack the fields
+        for feature in features:
+            unit_id = feature["UNITID"]
+            geometry_dict = feature["geometry"]
+
+            unit_id_bytes = unit_id.encode("utf-8")
+            unit_id_len = len(unit_id_bytes)
+            buffer_list.append(struct.pack("<I", unit_id_len))  # length of UNITID
+            buffer_list.append(unit_id_bytes)                   # actual UNITID bytes
+
+            # iv) geometry as JSON string
+            geom_str = json.dumps(geometry_dict)
+            geom_bytes = geom_str.encode("utf-8")
+            geom_len = len(geom_bytes)
+            buffer_list.append(struct.pack("<I", geom_len))
+            buffer_list.append(geom_bytes)
+
+        # Wrap up
+        final_data = b"".join(buffer_list)
+
+        return final_data
+
+    def get_boundaries_list(self):
+        return boundaries_list
+    
+    def get_click_boundary(self):
+        print("[Structure - get_click_boundary] Sending click boundary")
+        gdf = gpd.read_file(click_boundary_file)
+        return gdf
+    
+    def get_climate_point_layer(self, name, year, s_agg): # maybe preprocess this
         """
-        Return binary data for both points (s_agg == "") and polygons (s_agg == "ct").
+        Return binary data for points.
         """
         print("[Structure - get_points] ", name, year, s_agg)
         try:
-            data = self.__binary[s_agg][name][year]
+            data = self.__climate_layers[s_agg][name][year]
+        
         except KeyError:
             print(f"No data found for name: {name}, year: {year}, s_agg: {s_agg}")
             return None
@@ -100,11 +208,7 @@ class Structure(object):
             print(f"Data for {name}-{year}-{s_agg} is empty.")
             return None
 
-        # ---------------------------
-        # CASE 1: Points (s_agg == "")
-        # ---------------------------
-        if s_agg == "":
-            # Expect fields: {"length": int, "positions": [...], "colors": [...]}
+        if s_agg == "pt":
             length = data["length"]
             positions = data["positions"]
             colors = data["colors"]
@@ -134,64 +238,86 @@ class Structure(object):
                     buffer_values.append(struct.pack("<f", val))
 
             values_bin = b"".join(buffer_values)
-
             final_data = header + pos_bin + col_bin + ids_bin + values_bin
 
-
             return final_data
-
-        # ---------------------------
-        # CASE 2: Polygons (s_agg == "ct")
-        # ---------------------------
-        elif s_agg == "ct":
-            # data format: { "tracts": [ { "GEOID": str, "average_value": float,
-            #                             "color": [r,g,b,a],
-            #                             "geometry": {...} }, ... ] }
-
-            tracts = data["tracts"]
-            num_tracts = len(tracts)
-
-            # 1) pack the number of tracts (4 bytes)
-            buffer_list = [struct.pack("<I", num_tracts)]
-
-            # 2) for each tract, pack the fields
-            for tract in tracts:
-                geo_id = tract["GEOID"]
-                avg_val = tract["average_value"]
-                color = tract["color"]  # [r,g,b,a]
-                geometry_dict = tract["geometry"]
-
-                # i) GEOID as UTF-8 bytes
-                geo_id_bytes = geo_id.encode("utf-8")
-                geo_id_len = len(geo_id_bytes)
-                buffer_list.append(struct.pack("<I", geo_id_len))  # length of GEOID
-                buffer_list.append(geo_id_bytes)                    # actual GEOID bytes
-
-                # ii) average_value (float32)
-                buffer_list.append(struct.pack("<f", avg_val))
-
-                # iii) color (4 bytes)
-                # color is likely [int, int, int, int], each 0-255
-                buffer_list.append(struct.pack("<BBBB", *color))
-
-                # iv) geometry as JSON string
-                geom_str = json.dumps(geometry_dict)  # e.g. {"type":"Polygon","coordinates":[...]}
-                geom_bytes = geom_str.encode("utf-8")
-                geom_len = len(geom_bytes)
-                buffer_list.append(struct.pack("<I", geom_len))
-                buffer_list.append(geom_bytes)
-
-            # Combine everything
-            final_data = b"".join(buffer_list)
-            return final_data
-
+        
         else:
             # Unknown s_agg
             print(f"Unhandled s_agg='{s_agg}' - returning None.")
             return None
 
+    def get_climate_polygon_layer(self, name, year, s_agg):
+        print("[Structure - get_polygons] ", name, year, s_agg)
+        try:
+            data = self.__climate_layers[s_agg][name][year]
+        
+        except KeyError:
+            print(f"No data found for name: {name}, year: {year}, s_agg: {s_agg}")
+            return None
+
+        if not data:
+            print(f"Data for {name}-{year}-{s_agg} is empty.")
+            return None
+        
+        features = data["features"]
+        num_features = len(features)
+
+        # Pack the number of features (4 bytes)
+        buffer_list = [struct.pack("<I", num_features)]
+
+        # For each feature, pack the fields
+        for feature in features:
+            geo_id = feature["UNITID"]
+            avg_val = feature["value"]
+            color = feature["color"]  # [r,g,b,a]
+            geometry_dict = feature["geometry"]
+
+            # UNITID as UTF-8 bytes
+            geo_id_bytes = geo_id.encode("utf-8")
+            geo_id_len = len(geo_id_bytes)
+            buffer_list.append(struct.pack("<I", geo_id_len))  # length of UNITID
+            buffer_list.append(geo_id_bytes)                    # actual UNITID bytes
+
+            # Value (float32)
+            buffer_list.append(struct.pack("<f", avg_val))
+
+            # Color (4 bytes)
+            buffer_list.append(struct.pack("<BBBB", *color))
+
+            # Geometry as JSON string
+            geom_str = json.dumps(geometry_dict)  # e.g. {"type":"Polygon","coordinates":[...]}
+            geom_bytes = geom_str.encode("utf-8")
+            geom_len = len(geom_bytes)
+            buffer_list.append(struct.pack("<I", geom_len))
+            buffer_list.append(geom_bytes)
+
+        # Wrap up
+        final_data = b"".join(buffer_list)
+        return final_data
+
+    def get_climate_spatial_levels(self):
+        return CLIMATE_SPATIAL_LEVELS
+    
+    def get_climate_variables(self):
+        # climate_variables_without_domain_colors = [
+        #     {key: value for key, value in variable.items() if key not in ["domain", "colors"]}
+        #     for variable in CLIMATE_VARIABLES
+        # ]
+
+        # return climate_variables_without_domain_colors
+
+        converted_data = CLIMATE_VARIABLES.copy()
+
+        for entry in converted_data:
+            for key in ["domain", "colors"]:
+                if key in entry and isinstance(entry[key], np.ndarray):
+                    entry[key] = entry[key].tolist()
+        return converted_data
+
+    
     @staticmethod
-    def haversine_distance(lat1, lon1, lat2, lon2):
+    def __haversine_distance(lat1, lon1, lat2, lon2):
         """
         Calculate the great-circle distance between two points on the Earth surface.
         
@@ -254,7 +380,7 @@ class Structure(object):
                     longitudes = self.__risk_df['longitude'].values
                     
                     # Calculate distances using the Haversine formula
-                    distances = self.haversine_distance(lat, lon, latitudes, longitudes)
+                    distances = self.__haversine_distance(lat, lon, latitudes, longitudes)
                     
                     # Find the index of the nearest point
                     nearest_index = self.__risk_df.index[np.argmin(distances)]
@@ -272,10 +398,24 @@ class Structure(object):
             
             return formatted_data
 
+    def get_socio_data(self, id, level):
+        df = self.__socio_df[level]
+        df = df[df["GEOID"] == id]
+
+        result = [
+            {"name": description, "value": int(df[var].iloc[0]) if not df.empty else None}
+            for var_dict in socio_vars
+            for var, description in var_dict.items()
+        ]
+        
+        return result
+    
+    def get_socio_variables(self): # to do
+        pass
+    
     def get_stations(self):
         return self.__stations
     
-if __name__ == "__main__":
-    structure = Structure()
-    structure.load_points()
-    structure.get_points()
+    def get_climate_time_stamp_list(self):
+        return CLIMATE_TIME_STAMPS
+    

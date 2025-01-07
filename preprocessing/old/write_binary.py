@@ -170,7 +170,7 @@ def process_files(files):
                 print(f"Failed to save binary data to {filepath}: {e}")
 
 # start, end, n = -50, 50, 38
-start_min_temp, end_min_temp, n_min_temp = -20, 10, 14
+start_min_temp, end_min_temp, n_min_temp = -35, 0, 14
 min_temp_range = [round(start_min_temp + (end_min_temp- start_min_temp) * i / (n_min_temp - 1), 1) for i in range(n_min_temp)]
 
 start_max_temp, end_max_temp, n_max_temp = 10, 50, 14
@@ -287,10 +287,9 @@ prcp_colors = np.array([
 
 # temp_threshold = build_threshold_hex(temp_range, temp_colors)
 min_temp_threshold = build_threshold_rgba(min_temp_range, min_temp_colors)
-max_temp_threshold = build_threshold_rgba(max_temp_range, max_temp_colors)
-prcp_threshold = build_threshold_rgba(prcp_range_mm, prcp_colors)
-print(prcp_range_mm)
-print(prcp_threshold)
+# max_temp_threshold = build_threshold_rgba(max_temp_range, max_temp_colors)
+# prcp_threshold = build_threshold_rgba(prcp_range_mm, prcp_colors)
+
 # List of files
 geojson_files = [
     {"var_name": "tmin", "path": f"{files_path}/Illinois_tmin_round.json", "threshold": min_temp_threshold},
@@ -299,7 +298,7 @@ geojson_files = [
 ]
 
 
-# process_files(geojson_files)
+process_files(geojson_files)
 
 
 

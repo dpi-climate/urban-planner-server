@@ -1,8 +1,60 @@
 import numpy as np
 
+
+###########################################################
+processed_files_dir = "./processed_files"
+
+boundaries_list = [
+    {"id": "None", "name": "No Boundaries"},
+    {"id": "co", "name": "County"},
+    {"id": "ct", "name": "Census Tract"},
+    {"id": "bg", "name": "Block Group"}
+]
+
+CLIMATE_SPATIAL_LEVELS = [
+    { "name": "Points", "id": "pt" },
+    { "name": "County", "id": "co" },
+    { "name": "Census Tract", "id": "ct"},
+    { "name": "Block Group", "id": "bg"},
+]
+
+RISK_FILE = f"./{processed_files_dir}/risk/Illinois_prcp_risks_round.feather"
+
+SOCIO_SPATIAL_LEVELS = [
+    { "name": "Census Tract", "id": "ct"},
+    # { "name": "Block Group", "id": "bg"},
+]
+
+STATIONS_FILE = f"{processed_files_dir}/ev-stations/alt_fuel_stations.geojson"
+
+###########################################################
+
+# CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 2023+1)]
+CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 1982+1)]
+
+raw_files_dir = "./raw_files"
+click_boundary_file = f"{raw_files_dir}/IL_BNDY_State_Py.json"
+
+processed_climate_files_dir = f"{processed_files_dir}/climate"
+processed_ev_files_dir = f"{processed_files_dir}/ev-stations"
+processed_bound_files_dir = f"{processed_files_dir}/boundaries"
+processed_risk_dir = f"{processed_files_dir}/risk"
+processed_socio_dir = f"{processed_files_dir}/socio"
+
 files_path = "./files"
 
-stations_file = f"{files_path}/alt_fuel_stations.geojson"
+
+socio_vars = [
+    {"B01003_001E": "Population"},
+    {"P9_002N": "Hispanic or Latino"},
+    {"P9_003N": "Not Hispanic or Latino"},
+    {"P9_005N": "White"},
+    {"P9_006N": "Black or African American"},
+    {"P9_007N": "American Indian and Alaska Native"},
+    {"P9_008N": "Asian"},
+    {"P9_009N": "Native Hawaiian and Other Pacific Islander "},
+    {"P9_010N": "Some Other Race"},
+]
 
 files = [
             {"var_name": "tmin", "path": f"{files_path}/Yearly_tmin_round.json"},
@@ -14,18 +66,17 @@ binary_data_dir = f"{files_path}/binary_data"
 
 variables = ["tmin", "tmax", "prcp"]
 
-years = [str(y) for y in range(1980, 2023+1)]
-
-
-
 # Build variables domains and colors
-start, end, n = -50, 50, 38
-temp_range = [round(start + (end - start) * i / (n - 1), 1) for i in range(n)]
+min_temp_start, min_temp_end, min_temp_n = -35, 0, 14
+min_temp_domain = [round(min_temp_start + (min_temp_end - min_temp_start) * i / (min_temp_n - 1), 1) for i in range(min_temp_n)]
 
-prcp_range_inches = [0, 0.01, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 10, 15, 20, 30]
-prcp_range_mm = [round(value * 25.4, 2) for value in prcp_range_inches]
+max_temp_start, max_temp_end, max_temp_n = 10, 50, 14
+max_temp_domain = [round(max_temp_start + (max_temp_end - max_temp_start) * i / (max_temp_n - 1), 1) for i in range(max_temp_n)]
 
-temp_colors = np.array([
+prcp_domain_inches = [0, 0.01, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 10]
+prcp_domain_mm = [round(value * 25.4, 2) for value in prcp_domain_inches]
+
+min_temp_colors = np.array([
     [145, 0, 63],
     [206, 18, 86],
     [231, 41, 138],
@@ -44,7 +95,10 @@ temp_colors = np.array([
     [41, 158, 255],
     [74, 199, 255],
     [115, 215, 255],
-    [173, 255, 255],
+    [173, 255, 255]
+])
+
+max_temp_colors = np.array([
     [48, 207, 194],
     [0, 153, 150],
     [18, 87, 87],
@@ -66,32 +120,34 @@ temp_colors = np.array([
     [40, 0, 40]
 ])
 
-prcp_colors = np.array([[255,255,255],
-              [199,233,192],
-              [161,217,155],
-              [116,196,118],
-              [49,163,83],
-              [0,109,44],
-              [255,250,138],
-              [255,204,79],
-              [254,141,60],
-              [252,78,42],
-              [214,26,28],
-              [173,0,38],
-              [112,0,38],
-              [59,0,48],
-              [76,0,115],
-              [255,219,255]])
+prcp_colors = np.array([
+    [255,255,255], # ≤ 0.00
+    [199,233,192], # 0.01 - 0.25
+    [161,217,155], # 0.26 - 2.54
+    [116,196,118], # 2.55 - 6.35
+    [49,163,83],   # 6.36 - 12.70
+    [0,109,44],    # 12.71 - 25.40
+    [255,250,138], # 25.41 - 38.10
+    [255,204,79],  # 38.11 - 50.80
+    [254,141,60],  # 50.81 - 76.20
+    [252,78,42],   # 76.21 - 101.60
+    [214,26,28],   # 101.61 - 152.40
+    [173,0,38],    # 152.41 - 203.20
+    [112,0,38],    # 203.21 - 254.00
+    # [59,0,48],
+    # [76,0,115],
+    # [255,219,255]
+])
 
 variables_domains = {
-    "tmin": temp_range, 
-    "tmax": temp_range, 
-    "prcp": prcp_range_mm
+    "tmin": min_temp_domain, 
+    "tmax": max_temp_domain, 
+    "prcp": prcp_domain_mm
 }
 
 variables_colors = {
-    "tmin": temp_colors, 
-    "tmax": temp_colors, 
+    "tmin": min_temp_colors, 
+    "tmax": max_temp_colors, 
     "prcp": prcp_colors
 }
 
@@ -163,3 +219,26 @@ thresholds = {
             {"value": 241.3, "color": "#F2F0F7"},
     ]
 }
+
+CLIMATE_VARIABLES = [
+    {
+        "name": "Min Temperature",
+        "id": "tmin",
+        "domain": min_temp_domain,
+        "colors": min_temp_colors
+    },
+    {
+        "name": "Max Temperature",
+        "id": "tmax",
+        "domain": max_temp_domain,
+        "colors": max_temp_colors
+    },
+    {
+        "name": "Annual Daily Max Precipitation",
+        "id": "prcp",
+        "domain": prcp_domain_mm,
+        "colors": prcp_colors
+    }
+]
+
+CLIMATE_YEARS = [str(y) for y in range(1980, 2023+1)]

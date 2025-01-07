@@ -1,0 +1,13 @@
+Preprocessing:
+    Climate layers (points):    
+        python -m preprocessing.climate_points.preprocess_climate_points
+    
+    Climate layers (census tracts / block levels / etc)
+        python -m preprocessing.climate_aggregations.preprocess_climate_agg
+
+    Boundaries (census tracts / block levels / counties / etc)
+        python -m preprocessing.boundaries.boundary_to_pickle
+    
+    Socio-demographics (census tracts / block levels / counties / etc)
+        python -m preprocessing.socio_idx_data.build_socio_idx_data
+        python -m preprocessing.socio_idx_map.build_socio_idx_map
