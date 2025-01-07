@@ -315,7 +315,6 @@ class Structure(object):
                     entry[key] = entry[key].tolist()
         return converted_data
 
-    
     @staticmethod
     def __haversine_distance(lat1, lon1, lat2, lon2):
         """
