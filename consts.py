@@ -21,6 +21,7 @@ CLIMATE_SPATIAL_LEVELS = [
 RISK_FILE = f"./{processed_files_dir}/risk/Illinois_prcp_risks_round.feather"
 
 SOCIO_SPATIAL_LEVELS = [
+    { "name": "County", "id": "co"},
     { "name": "Census Tract", "id": "ct"},
     # { "name": "Block Group", "id": "bg"},
 ]
@@ -30,12 +31,13 @@ STATIONS_FILE = f"{processed_files_dir}/ev-stations/alt_fuel_stations.geojson"
 ###########################################################
 
 # CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 2023+1)]
-CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 1982+1)]
+deploying = False
+CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 1982+1)] if deploying else [str(y) for y in range(1980, 2023+1)]
 
 raw_files_dir = "./raw_files"
 click_boundary_file = f"{raw_files_dir}/IL_BNDY_State_Py.json"
 
-processed_climate_files_dir = f"{processed_files_dir}/climate"
+processed_climate_files_dir = f"{processed_files_dir}/climate" if deploying else f"{processed_files_dir}/climate/all"
 processed_ev_files_dir = f"{processed_files_dir}/ev-stations"
 processed_bound_files_dir = f"{processed_files_dir}/boundaries"
 processed_risk_dir = f"{processed_files_dir}/risk"
@@ -63,6 +65,36 @@ files = [
         ]
 
 binary_data_dir = f"{files_path}/binary_data"
+
+# socio_colors = np.array([
+#     (255, 255, 0),    # Yellow
+#     (204, 255, 0),
+#     (153, 255, 0),
+#     (102, 255, 0),
+#     (51, 255, 0),
+#     (0, 255, 0),      # Green
+#     (0, 191, 64),
+#     (0, 127, 128),
+#     (0, 63, 192),
+#     (0, 0, 255)       # Blue
+# ])
+
+socio_colors = np.array([
+  (255,255,217),
+  (237,248,177),
+  (199,233,180),
+  (127,205,187),
+  (65,182,196),
+  (29,145,192),
+  (34,94,168),
+  (37,52,148),
+  (8,29,88),
+  (8,29,88),
+  (8,29,88)
+])
+
+socio_domain = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+
 
 variables = ["tmin", "tmax", "prcp"]
 
@@ -219,6 +251,39 @@ thresholds = {
             {"value": 241.3, "color": "#F2F0F7"},
     ]
 }
+
+SOCIO_VARIABLES = [
+    {
+        "name": "Socioeconomic Status",
+        "id": "RPL_THEME1",
+        "domain": socio_domain,
+        "colors": socio_colors
+    },
+    {
+        "name": "Household Characteristics",
+        "id": "RPL_THEME2",
+        "domain": socio_domain,
+        "colors": socio_colors
+    },
+    {
+        "name": "Racial & Ethnic Minority Status",
+        "id": "RPL_THEME3",
+        "domain": socio_domain,
+        "colors": socio_colors
+    },
+    {
+        "name": "Housing Type/Transportation",
+        "id": "RPL_THEME4",
+        "domain": socio_domain,
+        "colors": socio_colors
+    },
+    {
+        "name": "Overall Summary",
+        "id": "RPL_THEMES",
+        "domain": socio_domain,
+        "colors": socio_colors
+    }
+]
 
 CLIMATE_VARIABLES = [
     {

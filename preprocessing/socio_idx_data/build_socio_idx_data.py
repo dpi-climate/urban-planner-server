@@ -46,5 +46,5 @@ def read_feather(file_name, id):
 
     
 if __name__ == "__main__":
-    # build_ct_socio_data("ct_socio")
+    build_ct_socio_data("ct_socio")
     read_feather("ct_socio", "17001000201")

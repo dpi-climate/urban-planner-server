@@ -50,6 +50,34 @@ def handle_climate_layer():
     # Return the raw bytes with an octet-stream mimetype
     return Response(binary, mimetype="application/octet-stream")
 
+@app.route("/socio_layer", methods=("GET",))
+def handle_socio_layer():
+
+    s_agg = request.args["s_agg"]
+
+    if s_agg == "pt":
+        s_agg = "co"
+    
+    elif s_agg == "bg":
+        s_agg = "ct"
+        
+    var_name = request.args["var_name"]
+
+    print(var_name, s_agg)
+
+    binary = structure.get_socio_layer(var_name, s_agg)
+
+    if binary is None:
+        return jsonify({"error": "No data found"}), 404
+
+    # Return the raw bytes with an octet-stream mimetype
+    return Response(binary, mimetype="application/octet-stream")
+
+@app.route("/socio_vars", methods=("GET",))
+def handle_socio_vars():
+    socio_vars = structure.get_socio_variables()
+    return jsonify(socio_vars)
+
 @app.route("/climate_vars", methods=("GET",))
 def handle_climate_vars():
     climate_vars = structure.get_climate_variables()
@@ -110,7 +138,8 @@ def main():
     structure.load_boundary_layers()
     structure.load_climate_layers()
     structure.load_risk_df()
-    structure.load_socio_df()
+    structure.load_socio_layers()
+    # structure.load_socio_df()
     structure.load_stations_layer()
 
 

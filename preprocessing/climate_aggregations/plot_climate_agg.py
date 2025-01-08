@@ -44,7 +44,7 @@ if __name__ == "__main__":
     ##############################################################
 
     # geojson_file_path = "./processed_files/ct_tmin_1980.geojson"
-    # geojson_agg_key = "average_value"
+    # geojson_agg_key = "value"
 
     # gdf = gpd.read_file(geojson_file_path, geojson_agg_key)
     # plot_geojson(gdf, geojson_agg_key)

@@ -11,3 +11,14 @@ Preprocessing:
     Socio-demographics (census tracts / block levels / counties / etc)
         python -m preprocessing.socio_idx_data.build_socio_idx_data
         python -m preprocessing.socio_idx_map.build_socio_idx_map
+
+    Stations layers
+        python -m preprocessing.ev-stations.build_stations
+
+    Risk Data
+        python -m preprocessing.risk.build_risk
+
+    SVI
+        source: https://www.atsdr.cdc.gov/place-health/php/svi/svi-data-documentation-download.html
+        python -m preprocessing.socio_idx_map.build_svi_map
+

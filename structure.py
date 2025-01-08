@@ -1,4 +1,4 @@
-from consts import STATIONS_FILE, CLIMATE_VARIABLES, CLIMATE_TIME_STAMPS, SOCIO_SPATIAL_LEVELS, RISK_FILE, CLIMATE_SPATIAL_LEVELS, processed_climate_files_dir, processed_bound_files_dir, socio_vars, processed_socio_dir, click_boundary_file, boundaries_list
+from consts import SOCIO_VARIABLES, STATIONS_FILE, CLIMATE_VARIABLES, CLIMATE_TIME_STAMPS, SOCIO_SPATIAL_LEVELS, RISK_FILE, CLIMATE_SPATIAL_LEVELS, processed_climate_files_dir, processed_bound_files_dir, socio_vars, processed_socio_dir, click_boundary_file, boundaries_list
 import pickle
 import os
 from collections import defaultdict
@@ -19,7 +19,8 @@ class Structure(object):
         
         self.__socio_df = None
         self.__socio_gdf = None
-        self.__socio_list = []
+        self.__socio_layers = {}
+        # self.__socio_list = []
 
     ########################  LOAD FUNCTIONS #################################################
     
@@ -48,6 +49,27 @@ class Structure(object):
                         data = pickle.load(f)
                     
                     data_dict[name][year] = data
+
+                except Exception as e:
+                    print(f"Failed to load {filename}: {e}")
+        
+        return data_dict
+    
+    def __load_social_spatial_level(self, file_group):
+        data_dict = defaultdict(dict)
+        
+        for filename in file_group:
+            if filename.endswith('.pickle'):
+                try:
+                    group_name = filename[:-7]
+                    name = group_name.split('_', 1)[1]
+                    
+                    file_path = os.path.join(processed_socio_dir, filename)
+
+                    with open(file_path, 'rb') as f:
+                        data = pickle.load(f)
+
+                    data_dict[name] = data
 
                 except Exception as e:
                     print(f"Failed to load {filename}: {e}")
@@ -120,6 +142,32 @@ class Structure(object):
         
         self.__socio_df = my_dict
     
+    def load_socio_layers(self):
+        spatial_level_ids = [sp.get("id") for sp in SOCIO_SPATIAL_LEVELS]
+        
+        all_files = [
+            f for f in os.listdir(processed_socio_dir)
+            if f.endswith('.pickle') and any(f.startswith(prefix + '_') for prefix in spatial_level_ids)
+        ]
+
+        groups = defaultdict(list)
+        
+        for filename in all_files:
+            group_name_time = filename[:-7]
+            parts = group_name_time.split('_')
+            prefix = parts[0]
+            
+            groups[prefix].append(filename)
+        
+        all_data = {}
+        
+        for prefix, file_group in groups.items():
+            print(f"Processing group with prefix '{prefix}' containing {len(file_group)} files.")
+            group_data = self.__load_social_spatial_level(file_group)
+            all_data[prefix] = group_data
+    
+        self.__socio_layers = all_data
+
     def load_socio_gdf(self): # to do 
         pass
         # socio_list = [
@@ -410,7 +458,64 @@ class Structure(object):
         return result
     
     def get_socio_variables(self): # to do
-        pass
+        converted_data = SOCIO_VARIABLES.copy()
+
+        for entry in converted_data:
+            for key in ["domain", "colors"]:
+                if key in entry and isinstance(entry[key], np.ndarray):
+                    entry[key] = entry[key].tolist()
+        return converted_data
+    
+    def get_socio_layer(self, name, s_agg):
+        print("[Structure - get_socio_layer] ", name, s_agg)
+        try:
+            print(self.__socio_layers.keys())
+            print(self.__socio_layers[s_agg].keys())
+            data = self.__socio_layers[s_agg][name]
+        
+        except KeyError:
+            print(f"No data found for name: {name}, s_agg: {s_agg}")
+            return None
+
+        if not data:
+            print(f"Data for {name} {s_agg} is empty.")
+            return None
+        
+        features = data["features"]
+        num_features = len(features)
+
+        # Pack the number of features (4 bytes)
+        buffer_list = [struct.pack("<I", num_features)]
+
+        # For each feature, pack the fields
+        for feature in features:
+            geo_id = feature["UNITID"]
+            avg_val = feature["value"]
+            color = feature["color"]  # [r,g,b,a]
+            geometry_dict = feature["geometry"]
+
+            # UNITID as UTF-8 bytes
+            geo_id_bytes = geo_id.encode("utf-8")
+            geo_id_len = len(geo_id_bytes)
+            buffer_list.append(struct.pack("<I", geo_id_len))  # length of UNITID
+            buffer_list.append(geo_id_bytes)                    # actual UNITID bytes
+
+            # Value (float32)
+            buffer_list.append(struct.pack("<f", avg_val))
+
+            # Color (4 bytes)
+            buffer_list.append(struct.pack("<BBBB", *color))
+
+            # Geometry as JSON string
+            geom_str = json.dumps(geometry_dict)  # e.g. {"type":"Polygon","coordinates":[...]}
+            geom_bytes = geom_str.encode("utf-8")
+            geom_len = len(geom_bytes)
+            buffer_list.append(struct.pack("<I", geom_len))
+            buffer_list.append(geom_bytes)
+
+        # Wrap up
+        final_data = b"".join(buffer_list)
+        return final_data
     
     def get_stations(self):
         return self.__stations

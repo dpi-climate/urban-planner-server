@@ -115,11 +115,11 @@ def build_ct_race_map(raw_gdf):
 
 
 if __name__ == "__main__":
-    ct_geojson = f"{raw_files_dir}/tl_2023_17_tract.json"
+    ct_geojson = f"{raw_files_dir}/tl_2023_17_tract_no_lake.json"
     ct_gdf = gpd.read_file(ct_geojson)
     
-    # build_ct_pop_map(ct_gdf)
-    # build_ct_race_map(ct_gdf)
+    build_ct_pop_map(ct_gdf)
+    build_ct_race_map(ct_gdf)
 
     # Plot pop
     path = f"{processed_socio_dir}/ct_pop.pickle"

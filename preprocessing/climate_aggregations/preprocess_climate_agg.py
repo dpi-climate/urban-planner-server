@@ -124,8 +124,7 @@ def process_climate_agg_files(raw_file_path, boundary_json_file_path, boundary_f
             except IOError as e:
                 print(f"Failed to save binary data to {output_path}: {e}")
 
-
-def process_tmin(pa, pr):
+def process_tmin(pa, pr, feature_id):
     tmin_id = "tmin"
     tmin_raw_data_path = f"{raw_path}/Illinois_tmin_round.json"
     tmin_threshold = build_threshold_rgba(min_temp_domain, min_temp_colors)
@@ -148,7 +147,7 @@ def process_tmin(pa, pr):
 
     print(f"Elapsed time for tmin: {elapsed_time:.2f} seconds")
 
-def process_tmax(pa, pr):
+def process_tmax(pa, pr, feature_id):
     tmax_id = "tmax"
     tmax_raw_data_path = f"{raw_path}/Illinois_tmax_round.json"
     tmax_threshold = build_threshold_rgba(max_temp_domain, max_temp_colors)
@@ -171,7 +170,7 @@ def process_tmax(pa, pr):
 
     print(f"Elapsed time for tmax: {elapsed_time:.2f} seconds")
 
-def process_prcp(pa, pr):
+def process_prcp(pa, pr, feature_id):
     prcp_id = "prcp"
     prcp_raw_data_path = f"{raw_path}/Illinois_prcp_risks_round.json"
     prcp_threshold = build_threshold_rgba(prcp_domain_mm, prcp_colors)
@@ -194,41 +193,49 @@ def process_prcp(pa, pr):
 
     print(f"Elapsed time for tmin: {elapsed_time:.2f} seconds")
 
+
+def build_ct_layers():
+    geojson_path = f"{raw_path}/tl_2023_17_tract_no_lake.json"
+    final_prefix = "ct"
+    feature_id = "GEOID"
+
+    process_prcp(geojson_path, final_prefix, feature_id)
+    process_tmin(geojson_path, final_prefix, feature_id)
+    process_tmax(geojson_path, final_prefix, feature_id)
+
+def build_bg_layers():
+    geojson_path = f"{raw_path}/tl_2023_17_bg_no_lake.json"
+    feature_id = "GEOID"
+    final_prefix = "bg"
+
+    process_prcp(geojson_path, final_prefix, feature_id)
+    process_tmin(geojson_path, final_prefix, feature_id)
+    process_tmax(geojson_path, final_prefix, feature_id)
+
+def build_co_layers():
+    geojson_path = f"{raw_path}/IL_BNDY_County_Py.json"
+    final_prefix = "co"
+    feature_id = "COUNTY_NAM"
+
+    process_prcp(geojson_path, final_prefix, feature_id)
+    process_tmin(geojson_path, final_prefix, feature_id)
+    process_tmax(geojson_path, final_prefix, feature_id)
+
+
+
 if __name__ == "__main__":
     raw_path = "./raw_files"
     processed_path = "./processed_files/climate"
     final_extension = "pickle"
 
-    # #######################################################
+    # Census Tract
+    build_ct_layers()
+    
+    # Block Level
+    build_bg_layers()
+
     # County
-    geojson_path = f"{raw_path}/IL_BNDY_County_Py.json"
-    final_prefix = "co"
-    feature_id = "COUNTY_NAM"
-
-    process_prcp(geojson_path, final_prefix)
-    process_tmin(geojson_path, final_prefix)
-    process_tmax(geojson_path, final_prefix)
+    build_co_layers()
 
 
-    # # #######################################################
-
-    # # Census Tract
-    # geojson_path = f"{raw_path}/tl_2023_17_tract.json"
-    # final_prefix = "ct"
-    # feature_id = "GEOID"
-
-    # process_prcp(geojson_path, final_prefix)
-    # process_tmin(geojson_path, final_prefix)
-    # process_tmax(geojson_path, final_prefix)
-
-    # # #######################################################
-    # # Block Level
-
-    # geojson_path = f"{raw_path}/tl_2023_17_bg.json"
-    # feature_id = "GEOID"
-    # final_prefix = "bg"
-
-    # process_prcp(geojson_path, final_prefix)
-    # process_tmin(geojson_path, final_prefix)
-    # process_tmax(geojson_path, final_prefix)
 

@@ -125,14 +125,22 @@ def process_climate_points_files(raw_file_path, final_path, var_id, var_threshol
         except IOError as e:
             print(f"Failed to save binary data to {processed_file_path}: {e}")
 
-if __name__ == "__main__":
 
-    raw_path = "./raw_files"
-    processed_path = "./processed_files/climate"
+def build_prcp():
+    prcp_id = "prcp"
+    raw_prcp_path = f"{raw_path}/Illinois_prcp_risks_round.json"
+    prcp_threshold = build_threshold_rgba(prcp_domain_mm, prcp_colors)
 
-    ######################################################
-    # Process tmin
+    process_climate_points_files(
+        raw_prcp_path,
+        processed_path,
+        prcp_id,
+        prcp_threshold,
+        True,
+        True
+    )
 
+def build_tmin():
     min_temp_id = "tmin"
     raw_min_temp_path = f"{raw_path}/Illinois_tmin_round.json"
     min_temp_threshold = build_threshold_rgba(min_temp_domain, min_temp_colors)
@@ -146,9 +154,7 @@ if __name__ == "__main__":
         True
     )
 
-    ######################################################
-    # Process tmax
-    
+def build_tmax():
     max_temp_id = "tmax"
     raw_max_temp_path = f"{raw_path}/Illinois_tmax_round.json"
     max_temp_threshold = build_threshold_rgba(max_temp_domain, max_temp_colors)
@@ -162,21 +168,14 @@ if __name__ == "__main__":
         True
     )
 
-    ######################################################
-    # Process prcp
-    
-    prcp_id = "prcp"
-    raw_prcp_path = f"{raw_path}/Illinois_prcp_risks_round.json"
-    prcp_threshold = build_threshold_rgba(prcp_domain_mm, prcp_colors)
+if __name__ == "__main__":
 
-    process_climate_points_files(
-        raw_prcp_path,
-        processed_path,
-        prcp_id,
-        prcp_threshold,
-        True,
-        True
-    )
+    raw_path = "./raw_files"
+    processed_path = "./processed_files/climate"
+
+    build_prcp()
+    build_tmin()
+    build_tmax()    
 
 
    
