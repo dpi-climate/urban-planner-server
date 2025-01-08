@@ -86,13 +86,9 @@ def handle_climate_vars():
 @app.route("/risk_data", methods=("GET",))
 def handle_point_feature():
 
-    if "pt_idx" in request.args:
-        pt_idx = int(request.args["pt_idx"])
-    
-    else:
-        pt_idx = (float(request.args["lat"]), float(request.args["lon"]))
+    coords = (float(request.args["lat"]), float(request.args["lon"]))
 
-    risk_data = structure.get_risk_data(pt_idx)
+    risk_data = structure.get_risk_data(coords)
     
     return jsonify(risk_data)
 

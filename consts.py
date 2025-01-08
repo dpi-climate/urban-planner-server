@@ -31,13 +31,13 @@ STATIONS_FILE = f"{processed_files_dir}/ev-stations/alt_fuel_stations.geojson"
 ###########################################################
 
 # CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 2023+1)]
-deploying = False
-CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 1982+1)] if deploying else [str(y) for y in range(1980, 2023+1)]
+final_version = True
+CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 2023+1)] if final_version else [str(y) for y in range(1980, 1982+1)]
 
 raw_files_dir = "./raw_files"
 click_boundary_file = f"{raw_files_dir}/IL_BNDY_State_Py.json"
 
-processed_climate_files_dir = f"{processed_files_dir}/climate" if deploying else f"{processed_files_dir}/climate/all"
+processed_climate_files_dir = f"{processed_files_dir}/climate/all" if final_version else f"{processed_files_dir}/climate"
 processed_ev_files_dir = f"{processed_files_dir}/ev-stations"
 processed_bound_files_dir = f"{processed_files_dir}/boundaries"
 processed_risk_dir = f"{processed_files_dir}/risk"
