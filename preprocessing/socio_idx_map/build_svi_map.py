@@ -139,18 +139,18 @@ if __name__ == "__main__":
 
     socio_threshold = build_threshold_rgba(socio_domain, socio_colors)
 
-    # ct_geojson = f"{raw_files_dir}/tl_2023_17_tract_no_lake.json"
-    # svi_ct_csv_file = "C:/Users/carolvfs/Documents/GitHub/urban-planner-server/raw_files/sociodemographic/svi/svi_illinois_ct.csv"
-    # ct_feature_id = "GEOID"
-    # svi_feature_id = "FIPS"
+    ct_geojson = f"{raw_files_dir}/tl_2023_17_tract_no_lake.json"
+    svi_ct_csv_file = f"{raw_files_dir}/sociodemographic/svi/svi_illinois_ct.csv"
+    ct_feature_id = "GEOID"
+    svi_feature_id = "FIPS"
 
-    # ct_gdf = gpd.read_file(ct_geojson)
+    ct_gdf = gpd.read_file(ct_geojson)
 
 
-    # build_pickle(svi_ct_csv_file, ct_gdf, "ct", ct_feature_id, svi_feature_id, socio_threshold)
+    build_pickle(svi_ct_csv_file, ct_gdf, "ct", ct_feature_id, svi_feature_id, socio_threshold)
 
     co_geojson = f"{raw_files_dir}/IL_BNDY_County_Py.json"
-    svi_co_csv_file = "C:/Users/carolvfs/Documents/GitHub/urban-planner-server/raw_files/sociodemographic/svi/svi_illinois_co.csv"
+    svi_co_csv_file = f"{raw_files_dir}/sociodemographic/svi/svi_illinois_co.csv"
     co_feature_id = "CO_FIPS"
     svi_feature_id = "FIPS"
 
@@ -164,10 +164,10 @@ if __name__ == "__main__":
 
     build_pickle(svi_co_csv_file, co_gdf, "co", co_feature_id, svi_feature_id, socio_threshold)
 
-    plot_pickle(
-        f"C:/Users/carolvfs/Documents/GitHub/urban-planner-server/processed_files/socio/co_RPL_THEME1.pickle",
-        "features",
-        "value"
-    )
+    # plot_pickle(
+    #     f"C:/Users/carolvfs/Documents/GitHub/urban-planner-server/processed_files/socio/co_RPL_THEME1.pickle",
+    #     "features",
+    #     "value"
+    # )
 
 

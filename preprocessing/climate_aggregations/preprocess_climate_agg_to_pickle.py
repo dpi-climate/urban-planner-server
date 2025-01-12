@@ -85,44 +85,85 @@ def process_climate_agg_files(raw_file_path, boundary_json_file_path, boundary_f
 
         filename = f"{prefix}_{var_id}_{time_stamp}.{extension}"
         output_path = os.path.join(final_path, filename)
+    
+        # Convert geometries to GeoJSON-like dicts
+        grouped['geometry'] = grouped['geometry'].apply(lambda geom: mapping(geom))
+
+        # Prepare the binary data
+        binary_data = {
+            "features": grouped[['UNITID', 'value', 'color', 'geometry']].to_dict(orient='records')
+        }
+
+        # # Define the filename
+        # output_name = f"ct_{var_id}_{time_stamp}.pickle"
+        # output_path = os.path.join(final_path, output_name)
+
+        # Save the binary data using pickle
+        try:
+            with open(output_path, 'wb') as pf:
+                pickle.dump(binary_data, pf)
+            print(f"Saved binary data for {var_id} {time_stamp} to {output_path}")
         
-        if extension == "geojson":
-            # Convert to GeoDataFrame
-            geojson_gdf = gpd.GeoDataFrame(grouped, geometry='geometry')
+        except IOError as e:
+            print(f"Failed to save binary data to {output_path}: {e}")
 
-            # Define properties for GeoJSON
-            geojson_gdf['color'] = geojson_gdf['color'].apply(lambda c: f"rgba({c[0]}, {c[1]}, {c[2]}, {c[3]})")
-            geojson_gdf = geojson_gdf[['UNITID', 'value', 'color', 'geometry']]           
 
-            # Save to GeoJSON
-            try:
-                geojson_gdf.to_file(output_path, driver='GeoJSON')
-                print(f"Saved GeoJSON data for {var_id} {time_stamp} to {output_path}")
-            
-            except IOError as e:
-                print(f"Failed to save GeoJSON data to {output_path}: {e}")
-        
-        elif extension == "pickle":
-            # Convert geometries to GeoJSON-like dicts
-            grouped['geometry'] = grouped['geometry'].apply(lambda geom: mapping(geom))
+def process_climate_agg_files_combined(
+    raw_file_path, boundary_json_file_path, boundary_feature_id, final_path,
+    pickle_filename, var_id, var_threshold
+):
+    points_gdf = gpd.read_file(raw_file_path)
+    boundary_gdf = gpd.read_file(boundary_json_file_path)
+    boundary_gdf.rename(columns={boundary_feature_id: 'UNITID'}, inplace=True)
 
-            # Prepare the binary data
-            binary_data = {
-                "features": grouped[['UNITID', 'value', 'color', 'geometry']].to_dict(orient='records')
-            }
+    if points_gdf.crs != boundary_gdf.crs:
+        points_gdf = points_gdf.to_crs(boundary_gdf.crs)
 
-            # # Define the filename
-            # output_name = f"ct_{var_id}_{time_stamp}.pickle"
-            # output_path = os.path.join(final_path, output_name)
+    sample_properties = points_gdf.iloc[0].drop(labels='geometry').to_dict()
+    time_stamp_keys = sorted([key for key in sample_properties.keys() if key.isdigit()])
 
-            # Save the binary data using pickle
-            try:
-                with open(output_path, 'wb') as pf:
-                    pickle.dump(binary_data, pf)
-                print(f"Saved binary data for {var_id} {time_stamp} to {output_path}")
-            
-            except IOError as e:
-                print(f"Failed to save binary data to {output_path}: {e}")
+    print(f"Processing variable '{var_id}' for time stamps: {', '.join(time_stamp_keys)}")
+
+    all_data = {}  # Dictionary to hold data for all timestamps
+
+    for time_stamp in time_stamp_keys:
+        if time_stamp not in points_gdf.columns:
+            print(f"Time stamp '{time_stamp}' not found in {raw_file_path}. Skipping year.")
+            continue
+
+        df_time_stamp = points_gdf[['geometry', time_stamp]].copy()
+        df_time_stamp = df_time_stamp.dropna(subset=[time_stamp])
+
+        try:
+            joined = gpd.sjoin(df_time_stamp, boundary_gdf, how='inner', predicate='within')
+        except Exception as e:
+            print(f"Error during spatial join for {var_id} {time_stamp}: {e}")
+            continue
+
+        grouped = joined.groupby('UNITID')[time_stamp].mean().reset_index()
+        grouped.rename(columns={time_stamp: 'value'}, inplace=True)
+
+        grouped['color'] = grouped['value'].apply(lambda x: get_color_for_value(var_threshold, x))
+        grouped = grouped.merge(boundary_gdf[['UNITID', 'geometry']], on='UNITID', how='left')
+
+        grouped['geometry'] = grouped['geometry'].apply(lambda geom: mapping(geom))
+
+        all_data[time_stamp] = grouped[['UNITID', 'value', 'color', 'geometry']].to_dict(orient='records')
+
+    # Save all data to a single pickle file
+    output_path = os.path.join(final_path, pickle_filename)
+    try:
+        with open(output_path, 'wb') as pf:
+            pickle.dump(all_data, pf)
+        print(f"Saved all timestamps data for {var_id} to {output_path}")
+    except IOError as e:
+        print(f"Failed to save data to {output_path}: {e}")
+
+def load_specific_timestamp(pickle_filepath, time_stamp):
+    with open(pickle_filepath, 'rb') as pf:
+        data = pickle.load(pf)
+        return data.get(time_stamp, None)
+
 
 def process_tmin(pa, pr, feature_id):
     tmin_id = "tmin"
@@ -131,21 +172,21 @@ def process_tmin(pa, pr, feature_id):
 
     start = time.time()
 
-    process_climate_agg_files(
+    process_climate_agg_files_combined(
         tmin_raw_data_path, 
         pa,
         feature_id,
         processed_path,
-        pr,
-        final_extension,
+        f"{pr}_tmin",
+        # final_extension,
         tmin_id,
         tmin_threshold
     )
 
     end = time.time()
-    elapsed_time = end - start
+    elapsed_time = (end - start)/60
 
-    print(f"Elapsed time for tmin: {elapsed_time:.2f} seconds")
+    print(f"Elapsed time for tmin: {elapsed_time:.2f} minute(s)")
 
 def process_tmax(pa, pr, feature_id):
     tmax_id = "tmax"
@@ -154,21 +195,21 @@ def process_tmax(pa, pr, feature_id):
 
     start = time.time()
 
-    process_climate_agg_files(
+    process_climate_agg_files_combined(
         tmax_raw_data_path, 
         pa,
         feature_id,
         processed_path,
-        pr,
-        final_extension,
+        f"{pr}_tmax",
+        # final_extension,
         tmax_id,
         tmax_threshold
     )
 
     end = time.time()
-    elapsed_time = end - start
+    elapsed_time = (end - start/60)
 
-    print(f"Elapsed time for tmax: {elapsed_time:.2f} seconds")
+    print(f"Elapsed time for tmax: {elapsed_time:.2f} minute(s)")
 
 def process_prcp(pa, pr, feature_id):
     prcp_id = "prcp"
@@ -177,21 +218,21 @@ def process_prcp(pa, pr, feature_id):
 
     start = time.time()
 
-    process_climate_agg_files(
+    process_climate_agg_files_combined(
         prcp_raw_data_path, 
         pa,
         feature_id,
         processed_path,
-        pr,
-        final_extension,
+        f"{pr}_prcp",
+        # final_extension,
         prcp_id,
         prcp_threshold
     )
 
     end = time.time()
-    elapsed_time = end - start
+    elapsed_time = (end - start)/60
 
-    print(f"Elapsed time for tmin: {elapsed_time:.2f} seconds")
+    print(f"Elapsed time for tmin: {elapsed_time:.2f} minute(s)")
 
 
 def build_ct_layers():
@@ -199,8 +240,8 @@ def build_ct_layers():
     final_prefix = "ct"
     feature_id = "GEOID"
 
-    # process_prcp(geojson_path, final_prefix, feature_id)
-    # process_tmin(geojson_path, final_prefix, feature_id)
+    process_prcp(geojson_path, final_prefix, feature_id)
+    process_tmin(geojson_path, final_prefix, feature_id)
     process_tmax(geojson_path, final_prefix, feature_id)
 
 def build_bg_layers():
@@ -208,8 +249,8 @@ def build_bg_layers():
     feature_id = "GEOID"
     final_prefix = "bg"
 
-    # process_prcp(geojson_path, final_prefix, feature_id)
-    # process_tmin(geojson_path, final_prefix, feature_id)
+    process_prcp(geojson_path, final_prefix, feature_id)
+    process_tmin(geojson_path, final_prefix, feature_id)
     process_tmax(geojson_path, final_prefix, feature_id)
 
 def build_co_layers():
@@ -217,8 +258,8 @@ def build_co_layers():
     final_prefix = "co"
     feature_id = "COUNTY_NAM"
 
-    # process_prcp(geojson_path, final_prefix, feature_id)
-    # process_tmin(geojson_path, final_prefix, feature_id)
+    process_prcp(geojson_path, final_prefix, feature_id)
+    process_tmin(geojson_path, final_prefix, feature_id)
     process_tmax(geojson_path, final_prefix, feature_id)
 
 

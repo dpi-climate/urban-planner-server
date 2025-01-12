@@ -173,8 +173,8 @@ if __name__ == "__main__":
     raw_path = "./raw_files"
     processed_path = "./processed_files/climate"
 
-    build_prcp()
-    build_tmin()
+    # build_prcp()
+    # build_tmin()
     build_tmax()    
 
 

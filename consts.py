@@ -30,14 +30,14 @@ STATIONS_FILE = f"{processed_files_dir}/ev-stations/alt_fuel_stations.geojson"
 
 ###########################################################
 
-# CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 2023+1)]
+CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 2023+1)]
 final_version = True
-CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 2023+1)] if final_version else [str(y) for y in range(1980, 1982+1)]
+# CLIMATE_TIME_STAMPS = [str(y) for y in range(1980, 2023+1)] if final_version else [str(y) for y in range(1980, 1982+1)]
 
 raw_files_dir = "./raw_files"
 click_boundary_file = f"{raw_files_dir}/IL_BNDY_State_Py.json"
 
-processed_climate_files_dir = f"{processed_files_dir}/climate/all" if final_version else f"{processed_files_dir}/climate"
+processed_climate_files_dir = f"{processed_files_dir}/climate" if final_version else f"{processed_files_dir}/climate"
 processed_ev_files_dir = f"{processed_files_dir}/ev-stations"
 processed_bound_files_dir = f"{processed_files_dir}/boundaries"
 processed_risk_dir = f"{processed_files_dir}/risk"
@@ -102,7 +102,7 @@ variables = ["tmin", "tmax", "prcp"]
 min_temp_start, min_temp_end, min_temp_n = -35, 0, 14
 min_temp_domain = [round(min_temp_start + (min_temp_end - min_temp_start) * i / (min_temp_n - 1), 1) for i in range(min_temp_n)]
 
-max_temp_start, max_temp_end, max_temp_n = 10, 50, 14
+max_temp_start, max_temp_end, max_temp_n = 27, 50, 14
 max_temp_domain = [round(max_temp_start + (max_temp_end - max_temp_start) * i / (max_temp_n - 1), 1) for i in range(max_temp_n)]
 
 prcp_domain_inches = [0, 0.01, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 10]

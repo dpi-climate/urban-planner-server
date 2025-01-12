@@ -1,11 +1,11 @@
 import os
 import geopandas as gpd
-import pickle
 from shapely.ops import nearest_points
 from shapely.geometry import mapping
 import pandas as pd
 import time
 from consts import min_temp_domain, min_temp_colors, max_temp_domain, max_temp_colors, prcp_domain_mm, prcp_colors
+import json
 
 def build_threshold_rgba(a, C):
     # Bins normalized between 0 and 1
@@ -207,9 +207,7 @@ def process_climate_agg_files_with_colors(raw_file_path, boundary_json_file_path
         print(f"Failed to save CSV data to {output_path}: {e}")
 
 def process_climate_agg_files(raw_file_path, boundary_json_file_path, boundary_feature_id, final_path, prefix, extension, var_id, var_threshold):
-    import os
-    import geopandas as gpd
-    from shapely.geometry import mapping
+    print(f"\n Processing {var_id}")
 
     # Read input files
     points_gdf = gpd.read_file(raw_file_path)
@@ -248,6 +246,8 @@ def process_climate_agg_files(raw_file_path, boundary_json_file_path, boundary_f
         grouped = joined.groupby('UNITID')[time_stamp].mean().reset_index()
         grouped.rename(columns={time_stamp: 'value'}, inplace=True)
 
+        grouped['value'] = grouped['value'].apply(lambda x: get_color_for_value(var_threshold, x))
+
         # Merge with boundary to retrieve geometries
         grouped = grouped.merge(boundary_gdf[['UNITID', 'geometry']], on='UNITID', how='left')
 
@@ -255,7 +255,11 @@ def process_climate_agg_files(raw_file_path, boundary_json_file_path, boundary_f
         grouped['time_stamp'] = time_stamp
 
         # Convert geometry to WKT for CSV compatibility
-        grouped['geometry'] = grouped['geometry'].apply(lambda geom: geom.wkt if geom is not None else None)
+        # grouped['geometry'] = grouped['geometry'].apply(lambda geom: geom.wkt if geom is not None else None)
+        # Convert geometry to a GeoJSON dictionary, then serialize to JSON string
+        grouped['geometry'] = grouped['geometry'].apply(
+            lambda geom: json.dumps(mapping(geom)) if geom is not None else None
+        )
 
         # Keep only relevant columns and accumulate data
         csv_data_accumulator.append(grouped[['UNITID', 'geometry', 'value', 'time_stamp']])
@@ -290,6 +294,66 @@ def process_climate_agg_files(raw_file_path, boundary_json_file_path, boundary_f
     except IOError as e:
         print(f"Failed to save CSV data to {output_path}: {e}")
 
+def process_climate_agg_files_per_time_stamp(raw_file_path, boundary_json_file_path, boundary_feature_id, final_path, prefix, extension, var_id, var_threshold):
+    import os
+    import geopandas as gpd
+    from shapely.geometry import mapping
+
+    # Read input files
+    points_gdf = gpd.read_file(raw_file_path)
+    boundary_gdf = gpd.read_file(boundary_json_file_path)
+    boundary_gdf.rename(columns={boundary_feature_id: 'UNITID'}, inplace=True)
+
+    # Ensure both GeoDataFrames use the same CRS
+    if points_gdf.crs != boundary_gdf.crs:
+        points_gdf = points_gdf.to_crs(boundary_gdf.crs)
+
+    # Identify time stamp columns assuming they are numeric strings
+    sample_properties = points_gdf.iloc[0].drop(labels='geometry').to_dict()
+    time_stamp_keys = sorted([key for key in sample_properties.keys() if key.isdigit()])
+
+    print(f"Processing variable '{var_id}' for time stamps: {', '.join(time_stamp_keys)}")
+
+    for time_stamp in time_stamp_keys:
+        # Select the value column for the current time stamp
+        if time_stamp not in points_gdf.columns:
+            print(f"Time stamp '{time_stamp}' not found in {raw_file_path}. Skipping this time stamp.")
+            continue
+
+        df_time_stamp = points_gdf[['geometry', time_stamp]].copy()
+        df_time_stamp = df_time_stamp.dropna(subset=[time_stamp])
+
+        try:
+            joined = gpd.sjoin(df_time_stamp, boundary_gdf, how='inner', predicate='within')
+        except Exception as e:
+            print(f"Error during spatial join for {var_id} {time_stamp}: {e}")
+            continue
+
+        # Group by UNITID and compute the mean value for the current time_stamp
+        grouped = joined.groupby('UNITID')[time_stamp].mean().reset_index()
+        grouped.rename(columns={time_stamp: 'value'}, inplace=True)
+
+        # Merge with boundary to retrieve geometries
+        grouped = grouped.merge(boundary_gdf[['UNITID', 'geometry']], on='UNITID', how='left')
+
+        # Add a column for the current time stamp
+        grouped['time_stamp'] = time_stamp
+
+        # Convert geometry to WKT for CSV compatibility
+        grouped['geometry'] = grouped['geometry'].apply(lambda geom: geom.wkt if geom is not None else None)
+
+        # Construct the filename for the current timestamp
+        output_filename = f"{prefix}_{var_id}_{time_stamp}.csv"
+        output_path = os.path.join(final_path, output_filename)
+
+        try:
+            # Save the data for the current time stamp to CSV
+            grouped.to_csv(output_path, index=False)
+            print(f"Saved data for {var_id} time stamp '{time_stamp}' to {output_path}")
+        except IOError as e:
+            print(f"Failed to save CSV for {time_stamp} to {output_path}: {e}")
+
+    print("Processing completed.")
 
 
 def process_tmin(pa, pr, feature_id):
@@ -359,10 +423,12 @@ def process_prcp(pa, pr, feature_id):
     end = time.time()
     elapsed_time = (end - start)/60
 
-    print(f"Elapsed time for tmin: {elapsed_time:.2f} minute(s)")
+    print(f"Elapsed time for prcp: {elapsed_time:.2f} minute(s)")
 
 
 def build_ct_layers():
+    print("")
+    print("Building ct layers")
     geojson_path = f"{raw_path}/tl_2023_17_tract_no_lake.json"
     final_prefix = "ct"
     feature_id = "GEOID"
@@ -372,6 +438,8 @@ def build_ct_layers():
     process_tmax(geojson_path, final_prefix, feature_id)
 
 def build_bg_layers():
+    print("")
+    print("Building bg layers")
     geojson_path = f"{raw_path}/tl_2023_17_bg_no_lake.json"
     feature_id = "GEOID"
     final_prefix = "bg"
@@ -381,6 +449,8 @@ def build_bg_layers():
     process_tmax(geojson_path, final_prefix, feature_id)
 
 def build_co_layers():
+    print("")
+    print("Building co layers")
     geojson_path = f"{raw_path}/IL_BNDY_County_Py.json"
     final_prefix = "co"
     feature_id = "COUNTY_NAM"

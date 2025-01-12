@@ -42,7 +42,7 @@ def handle_climate_layer():
         binary = structure.get_climate_point_layer(var_name, year, s_agg)
     
     else:
-        binary = structure.get_climate_polygon_layer(var_name, year, s_agg)
+        binary = structure.load_csv_file(var_name, year, s_agg)# structure.get_climate_polygon_layer(var_name, year, s_agg)
     
     if binary is None:
         return jsonify({"error": "No data found"}), 404
@@ -137,6 +137,8 @@ def main():
     structure.load_socio_layers()
     # structure.load_socio_df()
     structure.load_stations_layer()
+
+    # structure.load_csv_file()
 
 
     
