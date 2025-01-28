@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import pickle
+import csv
 
 from consts import min_temp_domain, min_temp_colors, max_temp_domain, max_temp_colors, prcp_domain_mm, prcp_colors
 
@@ -125,8 +126,7 @@ def process_climate_points_files(raw_file_path, final_path, var_id, var_threshol
         except IOError as e:
             print(f"Failed to save binary data to {processed_file_path}: {e}")
 
-import json
-import csv
+
 
 def json_to_csv_with_timestamps(raw_file_path, csv_file_path):
     # Load JSON data from file

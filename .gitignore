@@ -4,3 +4,8 @@
 /files
 /processed_files
 /raw_files
+/preprocessing/rebuild_climate_agg/*.csv
+/preprocessing/rebuild_climate_agg/*.geojson
+/preprocessing/rebuild_climate_agg/*.parquet
+/preprocessing/rebuild_climate_agg/*.pickle
+/shp_files

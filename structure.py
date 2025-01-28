@@ -26,16 +26,20 @@ class Structure(object):
     ########################  LOAD FUNCTIONS #################################################
     
     def load_csv_file(self, var_name, year, s_agg):
-        csv_file = f"{processed_climate_files_dir}/{s_agg}_{var_name}.csv"
-        # csv_file = f"{processed_climate_files_dir}/ct_prcp.csv"
-        df = pd.read_csv(csv_file)
+        # csv_file = f"{processed_climate_files_dir}/{s_agg}_{var_name}.csv"
+        # df = pd.read_csv(csv_file)
+
+        file = "C:/Users/carol/Documents/GitHub/urban-planner-server/preprocessing/rebuild_climate_agg/all_no_null.parquet"
+        df = gpd.read_parquet(file)
+        df = df[["UNITID", year, "geometry"]]
+        print("df loaded")
 
         buffer_list = []
 
         # Number of rows (features) in the DataFrame
         num_features = len(df)
         buffer_list.append(struct.pack("<I", num_features))  # Pack the number of features
-
+        print("start buffer_list")
         # Iterate over each row to encode its data
         for _, row in df.iterrows():
             # UNITID as UTF-8 bytes
@@ -46,24 +50,33 @@ class Structure(object):
             buffer_list.append(geo_id_bytes)                  # Actual UNITID bytes
 
             # Value (year column) as float32
-            avg_val = 30.0 #float(row[year])  # Ensure it's a float
+            # avg_val = 30.0
+            avg_val = float(row[year])  # Ensure it's a float
             buffer_list.append(struct.pack("<f", avg_val))
 
             # Placeholder for color (example: [255, 0, 0, 255])
-            color = ast.literal_eval(row[year])
+            # color = ast.literal_eval(row[year])
+            color = [255, 0, 0, 255]
             buffer_list.append(struct.pack("<BBBB", *color))
-
-            # Geometry as JSON string
-            geometry_dict = json.loads(row["geometry"])  # Assuming 'geometry' column contains JSON strings
-            geom_str = json.dumps(geometry_dict)
-            geom_bytes = geom_str.encode("utf-8")
-            geom_len = len(geom_bytes)
-            buffer_list.append(struct.pack("<I", geom_len))  # Length of geometry
-            buffer_list.append(geom_bytes)                  # Actual geometry bytes
-
+            
+            # geometry_dict = json.loads(row["geometry"])  # Assuming 'geometry' column contains JSON strings
+            
+            geometry_wkb = row["geometry"].wkb  # Much smaller than GeoJSON
+            buffer_list.append(struct.pack("<I", len(geometry_wkb)))  # Length of WKB
+            buffer_list.append(geometry_wkb)
+            
+            # geometry_dict = row["geometry"].__geo_interface__
+            # geom_str = json.dumps(geometry_dict)
+            # geom_bytes = geom_str.encode("utf-8")
+            # geom_len = len(geom_bytes)
+            # buffer_list.append(struct.pack("<I", geom_len))  # Length of geometry
+            # buffer_list.append(geom_bytes)                  # Actual geometry bytes
         # Combine all parts into a single byte string
         final_data = b"".join(buffer_list)
-        return final_data 
+        print("final data done")
+        size_in_bytes = len(final_data)
+        print(f"Size of the binary data: {size_in_bytes} bytes")
+        return final_data
     
     def __load_climate_spatial_level(self, file_group, prefix=''):
         data_dict = defaultdict(dict)

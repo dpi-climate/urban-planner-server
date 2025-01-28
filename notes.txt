@@ -22,3 +22,6 @@ Preprocessing:
         source: https://www.atsdr.cdc.gov/place-health/php/svi/svi-data-documentation-download.html
         python -m preprocessing.socio_idx_map.build_svi_map
 
+
+#############################################
+python -m preprocessing.rebuild_climate_agg.main
