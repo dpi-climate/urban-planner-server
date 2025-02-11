@@ -1,5 +1,5 @@
 from flask_cors import CORS
-from flask import Flask, request, send_from_directory, jsonify, Response
+from flask import Flask, request, send_from_directory, jsonify, send_file, Response
 
 from structure import Structure
 from flask_compress import Compress
@@ -39,16 +39,40 @@ def handle_climate_layer():
     print(var_name, year, s_agg)
 
     if s_agg == "pt":
-        binary = structure.get_climate_point_layer(var_name, year, s_agg)
-    
+        buffer = structure.get_climate_point_layer(var_name, year, s_agg)
+        final = Response(buffer, mimetype="application/octet-stream")
     else:
-        binary = structure.load_csv_file(var_name, year, s_agg)# structure.get_climate_polygon_layer(var_name, year, s_agg)
+        buffer = structure.load_csv_file(var_name, year, s_agg)# structure.get_climate_polygon_layer(var_name, year, s_agg)
+        final = Response(buffer, mimetype="application/octet-stream")
+        # # final = Response(
+        # #     buffer,
+        # #     mimetype="application/octet-stream",
+        # #     headers={"Content-Disposition": "attachment; filename=data.parquet"}
+        # #     # headers={"Content-Disposition": "attachment; filename=data.pkl"}
+        # # )
+        # # final = Response(buffer, content_type='application/json')#buffer
+        # final = send_file(
+        #     buffer,
+        #     as_attachment=False,
+        #     # as_attachment=True,
+        #     download_name="data.feather",
+        #     mimetype="application/octet-stream"
+        #     # download_name="data.parquet",
+        #     # mimetype="application/parquet"
+        # )
+        # # final = Response(
+        # #     buffer,
+        # #     mimetype='application/geo+json',
+        # #     headers={'Content-Disposition': 'attachment;filename=data.geojson'}
+        # # )
     
-    if binary is None:
+    if buffer is None:
         return jsonify({"error": "No data found"}), 404
 
     # Return the raw bytes with an octet-stream mimetype
-    return Response(binary, mimetype="application/octet-stream")
+    # return Response(buffer, mimetype="application/octet-stream")
+    return final
+
 
 @app.route("/socio_layer", methods=("GET",))
 def handle_socio_layer():

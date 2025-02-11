@@ -9,6 +9,12 @@ import struct
 import json
 import geopandas as gpd
 import ast
+import pyarrow.parquet as pq
+import pyarrow as pa
+import io
+import dask_geopandas as dg
+from shapely import ops
+import polars as pl
 
 class Structure(object):
     def __init__(self) -> None:
@@ -22,26 +28,53 @@ class Structure(object):
         self.__socio_gdf = None
         self.__socio_layers = {}
         # self.__socio_list = []
+        self.__climate_geojson = None
 
     ########################  LOAD FUNCTIONS #################################################
     
+    
     def load_csv_file(self, var_name, year, s_agg):
-        # csv_file = f"{processed_climate_files_dir}/{s_agg}_{var_name}.csv"
-        # df = pd.read_csv(csv_file)
+        # filep = "C:/Users/carolvfs/Documents/GitHub/urban-planner-server/preprocessing/rebuild_climate_agg/all_no_null.parquet"
+        # df = gpd.read_parquet(filep)
+        # df_filtered = df[["UNITID", year, "geometry"]].copy()
+        # df_filtered = df_filtered.rename(columns={year: "value"})
+        # # df_filtered["geometry"] = df_filtered["geometry"]#.apply(lambda geom: geom.wkt if geom is not None else None)#.astype(str)
+        # df_filtered["geometry"] = df_filtered["geometry"].apply(
+        #     lambda g: g.wkt if g is not None else None
+        # )
 
-        file = "C:/Users/carol/Documents/GitHub/urban-planner-server/preprocessing/rebuild_climate_agg/all_no_null.parquet"
-        df = gpd.read_parquet(file)
-        df = df[["UNITID", year, "geometry"]]
-        print("df loaded")
+
+        # # buffer = df_filtered.to_json()
+        # null_geometries = df_filtered["geometry"].isnull().sum()
+        # print(f"Number of null geometries: {null_geometries}")
+
+        # df_filtered = pd.DataFrame(df_filtered)
+        
+        # buffer = io.BytesIO()
+        # # df_filtered.to_parquet(buffer, compression=None, engine='pyarrow', version="1.0")
+        # df_filtered.to_feather(buffer, compression="uncompressed")
+
+    
+        # buffer.seek(0)
+
+        # return buffer#.read()
+    
+        csv_file = f"{processed_climate_files_dir}/{s_agg}_{var_name}.csv"
+        # csv_file = f"{processed_climate_files_dir}/ct_prcp.csv"
+        # df = pd.read_csv(csv_file)
+        # df = pl.read_csv(csv_file)
+        df = pl.read_csv(csv_file, columns=["UNITID", "geometry", year])
 
         buffer_list = []
 
         # Number of rows (features) in the DataFrame
-        num_features = len(df)
+        # num_features = len(df)
+        num_features = df.height
         buffer_list.append(struct.pack("<I", num_features))  # Pack the number of features
-        print("start buffer_list")
+
         # Iterate over each row to encode its data
-        for _, row in df.iterrows():
+        # for _, row in df.iterrows():
+        for row in df.iter_rows(named=True):
             # UNITID as UTF-8 bytes
             geo_id = str(row["UNITID"])  # Ensure UNITID is a string
             geo_id_bytes = geo_id.encode("utf-8")
@@ -50,32 +83,24 @@ class Structure(object):
             buffer_list.append(geo_id_bytes)                  # Actual UNITID bytes
 
             # Value (year column) as float32
-            # avg_val = 30.0
-            avg_val = float(row[year])  # Ensure it's a float
+            avg_val = 30.0 #float(row[year])  # Ensure it's a float
             buffer_list.append(struct.pack("<f", avg_val))
 
             # Placeholder for color (example: [255, 0, 0, 255])
-            # color = ast.literal_eval(row[year])
-            color = [255, 0, 0, 255]
+            color = ast.literal_eval(row[year])
             buffer_list.append(struct.pack("<BBBB", *color))
-            
-            # geometry_dict = json.loads(row["geometry"])  # Assuming 'geometry' column contains JSON strings
-            
-            geometry_wkb = row["geometry"].wkb  # Much smaller than GeoJSON
-            buffer_list.append(struct.pack("<I", len(geometry_wkb)))  # Length of WKB
-            buffer_list.append(geometry_wkb)
-            
-            # geometry_dict = row["geometry"].__geo_interface__
-            # geom_str = json.dumps(geometry_dict)
-            # geom_bytes = geom_str.encode("utf-8")
-            # geom_len = len(geom_bytes)
-            # buffer_list.append(struct.pack("<I", geom_len))  # Length of geometry
-            # buffer_list.append(geom_bytes)                  # Actual geometry bytes
+
+            # Geometry as JSON string
+            geometry_dict = json.loads(row["geometry"])  # Assuming 'geometry' column contains JSON strings
+            geom_str = json.dumps(geometry_dict)
+            geom_bytes = geom_str.encode("utf-8")
+            geom_len = len(geom_bytes)
+            buffer_list.append(struct.pack("<I", geom_len))  # Length of geometry
+            buffer_list.append(geom_bytes)                  # Actual geometry bytes
+
         # Combine all parts into a single byte string
         final_data = b"".join(buffer_list)
-        print("final data done")
-        size_in_bytes = len(final_data)
-        print(f"Size of the binary data: {size_in_bytes} bytes")
+
         return final_data
     
     def __load_climate_spatial_level(self, file_group, prefix=''):
@@ -151,6 +176,11 @@ class Structure(object):
         self.__boundary_layers = boundaries
         
     def load_climate_layers(self):
+
+        filep = "C:/Users/carolvfs/Documents/GitHub/urban-planner-server/preprocessing/rebuild_climate_agg/all_no_null.geojson"
+        # self.__climate_geojson = gpd.read_file(filep)
+
+         
         # all_files = [f for f in os.listdir(processed_climate_files_dir) if f.endswith('.pickle')]
         spatial_level_ids = [sp.get("id") for sp in CLIMATE_SPATIAL_LEVELS]
         
@@ -341,6 +371,9 @@ class Structure(object):
 
             values_bin = b"".join(buffer_values)
             final_data = header + pos_bin + col_bin + ids_bin + values_bin
+            size_in_bytes = len(final_data)
+            # print(f"Size of the binary data: {size_in_bytes} bytes")
+            print(f"Size of the binary data (points): {size_in_bytes  / (1024 ** 2):.2f} MB")
 
             return final_data
         

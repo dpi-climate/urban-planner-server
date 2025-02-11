@@ -26,7 +26,8 @@ SOCIO_SPATIAL_LEVELS = [
     # { "name": "Block Group", "id": "bg"},
 ]
 
-STATIONS_FILE = f"{processed_files_dir}/ev-stations/alt_fuel_stations.geojson"
+# STATIONS_FILE = f"{processed_files_dir}/ev-stations/alt_fuel_stations.geojson"
+STATIONS_FILE = f"{processed_files_dir}/ev-stations/merged_stations_Feb_11_2025.geojson"
 
 ###########################################################
 

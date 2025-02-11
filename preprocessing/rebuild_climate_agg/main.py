@@ -116,7 +116,7 @@ def build_file():
         #######################################################################################
 
         grouped['time_stamp'] = time_stamp
-        grouped['geometry'] = grouped['geometry'].apply(lambda geom: geom.wkt if geom is not None else None)
+        # grouped['geometry'] = grouped['geometry'].apply(lambda geom: geom.wkt if geom is not None else None)
         
         data_accumulator.append(grouped[['UNITID', 'geometry', 'value', 'time_stamp']])
 
@@ -133,14 +133,15 @@ def build_file():
 
     pivot_gdf = gpd.GeoDataFrame(
         pivot_df, 
-        geometry=gpd.GeoSeries.from_wkt(pivot_df['geometry']), 
+        geometry='geometry',#gpd.GeoSeries.from_wkt(pivot_df['geometry']), 
         crs=projected_crs
     )
 
     pivot_gdf = pivot_gdf.to_crs(original_crs)
 
-    # pivot_gdf.to_parquet(f'./preprocessing/rebuild_climate_agg/all_no_null.parquet', compression='snappy')
-    pivot_gdf.to_file('./preprocessing/rebuild_climate_agg/all_no_null.geojson', driver='GeoJSON')
+    pivot_gdf.to_parquet(f'./preprocessing/rebuild_climate_agg/all_no_null.parquet', compression='snappy')
+    # pivot_gdf.to_feather(f'./preprocessing/rebuild_climate_agg/all_no_null.feather', compression=None)
+    # pivot_gdf.to_file('./preprocessing/rebuild_climate_agg/all_no_null.geojson', driver='GeoJSON')
 
     # memory_usage = grouped.memory_usage(deep=True).sum()
     # memory_in_mb = memory_usage / (1024 ** 2)
