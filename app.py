@@ -139,6 +139,13 @@ def handle_climate_time_stamp_list():
     climate_tstamp_list = structure.get_climate_time_stamp_list()
     return climate_tstamp_list
 
+@app.route("/<path:path>")
+def serve_files(path):
+    return send_from_directory('../urban-planner/dist', path)
+
+@app.route('/')
+def root():
+    return send_from_directory('../urban-planner/dist', 'index.html')
 
 def main():
     # global workdir
