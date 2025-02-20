@@ -6,6 +6,9 @@ from consts import raw_files_dir, processed_socio_dir, socio_domain, socio_color
 from shapely.geometry.base import BaseGeometry
 import matplotlib.pyplot as plt
 from shapely.geometry import shape
+import pandas as pd
+import pyarrow.feather as feather
+# from shapely.geometry import BaseGeometry, mapping
 
 def plot_pickle(file_path, prop_key, agg_key):
 
@@ -90,6 +93,24 @@ def save_file(data, file_name):
     except IOError as e:
         print(f"Failed to save binary data to {output_path}: {e}")
 
+def save_feather(data, file_name):
+    def safe_mapping(geom):
+        if isinstance(geom, BaseGeometry) and geom.is_valid:
+            return mapping(geom)
+        return None  # Return None for invalid geometries
+
+    if 'geometry' in data.columns:
+        data = data.copy()  # Avoid SettingWithCopyWarning
+        data['geometry'] = data['geometry'].apply(safe_mapping)
+
+    output_path = f"{processed_socio_dir}/{file_name}.feather"
+
+    try:
+        feather.write_feather(data[['UNITID', 'value', 'color', 'geometry']], output_path)
+        print(f"Saved data for {file_name} to {output_path}")
+    except IOError as e:
+        print(f"Failed to save data to {output_path}: {e}")
+
 def build_pickle(csv_file, raw_gdf, prefix, geo_feature_id, csv_feature_id, threshold):
     
     df = pd.read_csv(
@@ -123,7 +144,8 @@ def build_pickle(csv_file, raw_gdf, prefix, geo_feature_id, csv_feature_id, thre
         # Assign colors based on the value, where None results in white
         final_gdf.loc[:, "color"] = final_gdf['value'].apply(lambda x: get_color_for_value(threshold, x))
 
-        save_file(final_gdf, f"{prefix}_{col}")
+        # save_file(final_gdf, f"{prefix}_{col}")
+        save_feather(final_gdf, f"{prefix}_{col}")
 
 
 def preprocess_co(geo_file):

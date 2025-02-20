@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import pickle
+import pandas as pd
 
 from consts import min_temp_domain, min_temp_colors, max_temp_domain, max_temp_colors, prcp_domain_mm, prcp_colors
 
@@ -125,6 +126,98 @@ def process_climate_points_files(raw_file_path, final_path, var_id, var_threshol
         except IOError as e:
             print(f"Failed to save binary data to {processed_file_path}: {e}")
 
+def process_climate_points_files_to_feather(raw_file_path, final_path, var_id, var_threshold, process_ids=False, process_values=False):
+    with open(raw_file_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    features = data.get("features", [])
+    sample_feature = features[0]
+    properties = sample_feature.get("properties", {})
+
+    time_stamp_keys = sorted([key for key in properties.keys() if key.isdigit()])
+
+    print(f"Processing variable '{var_id}' for years: {', '.join(time_stamp_keys)}")
+
+    for time_stamp in time_stamp_keys:
+        positions = []
+        colors = []
+        values = []
+        ids = []
+        processed_features = 0
+        id_counter = 0
+
+        final_data = {}
+
+        for feature in features:
+            
+            # Process positions
+            coord = feature.get("geometry", {}).get("coordinates", [])
+
+            if not coord or len(coord) < 2:
+                print(f"Invalid coordinates in feature: {feature}. Skipping feature.")
+                continue
+            
+            positions.extend([coord[0], coord[1]])
+            
+            properties = feature.get("properties", {})
+            raw_value = properties.get(time_stamp)
+
+            if raw_value is None:
+                value = None  # Will be handled as transparent
+            
+            else:
+                try:
+                    value = float(raw_value)
+                except (ValueError, TypeError):
+                    print(f"Warning: Unable to convert value '{raw_value}' to float for feature with properties {properties}")
+                    value = None  # Will be handled as transparent
+
+            # Process colors
+            try:
+                r, g, b, a = get_color_for_value(var_threshold, value)
+
+            except ValueError as e:
+                print(f"Error converting color for value {value}: {e}")
+                r, g, b, a = (0, 0, 0, 0)  # Fully transparent as fallback
+            
+            colors.extend([r, g, b, a])
+            
+            # Process values
+            if process_values:
+                values.append(value)
+            
+            # Process ids
+            if process_ids:
+                ids.append(id_counter)
+                id_counter += 1
+            
+            processed_features += 1
+
+        final_data = {
+            "length": processed_features,
+            "positions": positions,
+            "colors": colors,
+        }
+
+        if process_values:
+            final_data["values"] = values
+            
+        if process_ids:
+           final_data["ids"] = ids
+
+        df = pd.DataFrame.from_dict(final_data, orient='index').transpose()
+
+        processed_file_name = f"pt_{var_id}_{time_stamp}.feather"
+        processed_file_path = os.path.join(final_path, processed_file_name)
+
+        try:
+            df.to_feather(processed_file_path)
+            # with open(processed_file_path, 'wb') as pf:
+            #     pickle.dump(final_data, pf)
+            print(f"Saved binary data for {var_id} {time_stamp} to {processed_file_path}")
+        
+        except IOError as e:
+            print(f"Failed to save binary data to {processed_file_path}: {e}")
 
 def build_prcp():
     prcp_id = "prcp"
@@ -144,7 +237,7 @@ def build_tmin():
     min_temp_id = "tmin"
     raw_min_temp_path = f"{raw_path}/Illinois_tmin_round.json"
     min_temp_threshold = build_threshold_rgba(min_temp_domain, min_temp_colors)
-
+    
     process_climate_points_files(
         raw_min_temp_path,
         processed_path,
