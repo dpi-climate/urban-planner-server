@@ -21,3 +21,6 @@ forwarded_allow_ips = os.environ.get('GUNICORN_FORWARDED_ALLOW_IPS', '*')
 accesslog = os.environ.get('GUNICORN_ACCESSLOG', '-')
 errorlog = os.environ.get('GUNICORN_ERRORLOG', '-')
 loglevel = os.environ.get('GUNICORN_LOGLEVEL', 'info')
+
+# IMPORTANT: Use an ASGI worker class for FastAPI
+worker_class = "uvicorn.workers.UvicornWorker"
