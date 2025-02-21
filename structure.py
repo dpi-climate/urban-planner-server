@@ -8,12 +8,6 @@ import numpy as np
 import struct
 import json
 import geopandas as gpd
-import ast
-import pyarrow.parquet as pq
-import pyarrow as pa
-import io
-import dask_geopandas as dg
-from shapely import ops
 import polars as pl
 
 class Structure(object):
