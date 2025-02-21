@@ -243,10 +243,10 @@ def process_climate_agg_files(raw_file_path, boundary_json_file_path, boundary_f
             continue
 
         # Group by UNITID and compute the mean value for the current time_stamp
-        grouped = joined.groupby('UNITID')[time_stamp].mean().reset_index()
+        grouped = joined.groupby('UNITID')[time_stamp].mean().round(1).reset_index()
         grouped.rename(columns={time_stamp: 'value'}, inplace=True)
 
-        grouped['value'] = grouped['value'].apply(lambda x: get_color_for_value(var_threshold, x))
+        # grouped['value'] = grouped['value'].apply(lambda x: get_color_for_value(var_threshold, x))
 
         # Merge with boundary to retrieve geometries
         grouped = grouped.merge(boundary_gdf[['UNITID', 'geometry']], on='UNITID', how='left')
@@ -467,14 +467,15 @@ if __name__ == "__main__":
     # final_extension = "pickle"
     final_extension = "csv"
 
+    # County
+    build_co_layers()
+    
     # Census Tract
     build_ct_layers()
     
     # Block Level
     build_bg_layers()
 
-    # County
-    build_co_layers()
 
 
 

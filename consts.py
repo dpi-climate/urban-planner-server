@@ -288,19 +288,19 @@ SOCIO_VARIABLES = [
 
 CLIMATE_VARIABLES = [
     {
-        "name": "Min Temperature",
+        "name": "Min Temperature (C)",
         "id": "tmin",
         "domain": min_temp_domain,
         "colors": min_temp_colors
     },
     {
-        "name": "Max Temperature",
+        "name": "Max Temperature (C)",
         "id": "tmax",
         "domain": max_temp_domain,
         "colors": max_temp_colors
     },
     {
-        "name": "Annual Daily Max Precipitation",
+        "name": "Annual Daily Max Precipitation (mm)",
         "id": "prcp",
         "domain": prcp_domain_mm,
         "colors": prcp_colors

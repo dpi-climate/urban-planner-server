@@ -34,60 +34,39 @@ class Structure(object):
     
     
     def load_csv_file(self, var_name, year, s_agg):
-        # filep = "C:/Users/carolvfs/Documents/GitHub/urban-planner-server/preprocessing/rebuild_climate_agg/all_no_null.parquet"
-        # df = gpd.read_parquet(filep)
-        # df_filtered = df[["UNITID", year, "geometry"]].copy()
-        # df_filtered = df_filtered.rename(columns={year: "value"})
-        # # df_filtered["geometry"] = df_filtered["geometry"]#.apply(lambda geom: geom.wkt if geom is not None else None)#.astype(str)
-        # df_filtered["geometry"] = df_filtered["geometry"].apply(
-        #     lambda g: g.wkt if g is not None else None
-        # )
-
-
-        # # buffer = df_filtered.to_json()
-        # null_geometries = df_filtered["geometry"].isnull().sum()
-        # print(f"Number of null geometries: {null_geometries}")
-
-        # df_filtered = pd.DataFrame(df_filtered)
-        
-        # buffer = io.BytesIO()
-        # # df_filtered.to_parquet(buffer, compression=None, engine='pyarrow', version="1.0")
-        # df_filtered.to_feather(buffer, compression="uncompressed")
-
-    
-        # buffer.seek(0)
-
-        # return buffer#.read()
     
         csv_file = f"{processed_climate_files_dir}/{s_agg}_{var_name}.csv"
-        # csv_file = f"{processed_climate_files_dir}/ct_prcp.csv"
-        # df = pd.read_csv(csv_file)
-        # df = pl.read_csv(csv_file)
+        # csv_file = f"{processed_climate_files_dir}/co_{var_name}.csv"
         df = pl.read_csv(csv_file, columns=["UNITID", "geometry", year])
+
+        # df = df.with_column(pl.col(year).cast(pl.Float64))
+
+        min_val = float(df.select(pl.col(year).min()).item())
+        max_val = float(df.select(pl.col(year).max()).item())
 
         buffer_list = []
 
-        # Number of rows (features) in the DataFrame
-        # num_features = len(df)
         num_features = df.height
-        buffer_list.append(struct.pack("<I", num_features))  # Pack the number of features
+        buffer_list.append(struct.pack("<I", num_features))
 
-        # Iterate over each row to encode its data
-        # for _, row in df.iterrows():
+        buffer_list.append(struct.pack("<f", min_val))
+        buffer_list.append(struct.pack("<f", max_val))
+
         for row in df.iter_rows(named=True):
-            # UNITID as UTF-8 bytes
-            geo_id = str(row["UNITID"])  # Ensure UNITID is a string
+
+            geo_id = str(row["UNITID"])
             geo_id_bytes = geo_id.encode("utf-8")
             geo_id_len = len(geo_id_bytes)
-            buffer_list.append(struct.pack("<I", geo_id_len))  # Length of UNITID
-            buffer_list.append(geo_id_bytes)                  # Actual UNITID bytes
+            buffer_list.append(struct.pack("<I", geo_id_len))
+            buffer_list.append(geo_id_bytes)
 
-            # Value (year column) as float32
-            avg_val = 30.0 #float(row[year])  # Ensure it's a float
+            avg_val = float(row[year])
+            # avg_val = 30.0
             buffer_list.append(struct.pack("<f", avg_val))
 
-            # Placeholder for color (example: [255, 0, 0, 255])
-            color = ast.literal_eval(row[year])
+
+            # color = ast.literal_eval(row[year])
+            color = [255, 0, 0, 255]
             buffer_list.append(struct.pack("<BBBB", *color))
 
             # Geometry as JSON string
@@ -95,10 +74,9 @@ class Structure(object):
             geom_str = json.dumps(geometry_dict)
             geom_bytes = geom_str.encode("utf-8")
             geom_len = len(geom_bytes)
-            buffer_list.append(struct.pack("<I", geom_len))  # Length of geometry
-            buffer_list.append(geom_bytes)                  # Actual geometry bytes
+            buffer_list.append(struct.pack("<I", geom_len))
+            buffer_list.append(geom_bytes)
 
-        # Combine all parts into a single byte string
         final_data = b"".join(buffer_list)
 
         return final_data
@@ -346,6 +324,11 @@ class Structure(object):
             colors = data["colors"]
             ids = data["ids"]
             values = data["values"]
+            
+            filtered_values = [val for val in values if val is not None]
+
+            min_value = min(filtered_values)
+            max_value = max(filtered_values)
 
             header = struct.pack("<I", length)
             
@@ -370,7 +353,11 @@ class Structure(object):
                     buffer_values.append(struct.pack("<f", val))
 
             values_bin = b"".join(buffer_values)
-            final_data = header + pos_bin + col_bin + ids_bin + values_bin
+            
+            min_max_bin = struct.pack("<ff", min_value, max_value)
+
+            # final_data = header + pos_bin + col_bin + ids_bin + values_bin
+            final_data = header + pos_bin + col_bin + ids_bin + values_bin + min_max_bin
             size_in_bytes = len(final_data)
             # print(f"Size of the binary data: {size_in_bytes} bytes")
             print(f"Size of the binary data (points): {size_in_bytes  / (1024 ** 2):.2f} MB")
@@ -570,6 +557,7 @@ class Structure(object):
         
         features = data["features"]
         num_features = len(features)
+        
 
         # Pack the number of features (4 bytes)
         buffer_list = [struct.pack("<I", num_features)]

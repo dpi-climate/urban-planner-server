@@ -216,16 +216,15 @@ def build_co_layers():
 if __name__ == "__main__":
     raw_path = "./raw_files"
     processed_path = "./processed_files/climate"
-    final_extension = "pickle"
 
     # Census Tract
-    build_ct_layers()
+    # build_ct_layers()
     
     # Block Level
     build_bg_layers()
 
     # County
-    build_co_layers()
+    # build_co_layers()
 
 
 
