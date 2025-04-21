@@ -10,6 +10,8 @@ import json
 import geopandas as gpd
 import polars as pl
 
+import psycopg2
+
 class Structure(object):
     def __init__(self) -> None:
         self.__boundary_layers = {}
@@ -27,11 +29,39 @@ class Structure(object):
     ########################  LOAD FUNCTIONS #################################################
     
     
+    def load_from_db(self):
+
+        conn = psycopg2.connect(
+            dbname="urban_planner_db",
+            user="postgres",
+            password=123,
+            host="localhost",
+            port="5432"
+        )
+        cursor = conn.cursor()
+
+        query = """
+            SELECT 
+            unitid, 
+            ST_AsGeoJSON(geometry) as geometry_geojson,
+            avg_value
+            FROM bg_prcp_combined
+            WHERE year = "val_1980";
+        """
+        
+        cursor.execute(query, (val_1980,))
+        rows = cursor.fetchall()
+
+
+
+    
     def load_csv_file(self, var_name, year, s_agg):
     
         csv_file = f"{processed_climate_files_dir}/{s_agg}_{var_name}.csv"
-        # csv_file = f"{processed_climate_files_dir}/co_{var_name}.csv"
+        # csv_file = f"{processed_climate_files_dir}/bg_{var_name}.csv"
         df = pl.read_csv(csv_file, columns=["UNITID", "geometry", year])
+
+        print("here")
 
         # df = df.with_column(pl.col(year).cast(pl.Float64))
 

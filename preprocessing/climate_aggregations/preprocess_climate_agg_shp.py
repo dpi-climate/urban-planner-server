@@ -83,30 +83,34 @@ def process_climate_agg_files_combined_shapefile(raw_file_path, boundary_json_fi
         # Group by boundary UNITID and calculate mean for the timestamp
         grouped = joined.groupby('UNITID')[time_stamp].mean().reset_index()
         # Use a shorter column name because shapefile field names are limited to 10 characters
-        value_col = f"val_{time_stamp}"
-        color_col = f"col_{time_stamp}"
+        # value_col = f"val_{time_stamp}"
+        value_col = time_stamp
+        # color_col = f"col_{time_stamp}"
 
-        grouped.rename(columns={time_stamp: value_col}, inplace=True)
+        # grouped.rename(columns={time_stamp: value_col}, inplace=True)
 
-        # Assign colors based on average values for the current timestamp
-        grouped[color_col] = grouped[value_col].apply(
-            lambda x: get_color_for_value(var_threshold, x)
-        )
+        # # Assign colors based on average values for the current timestamp
+        # grouped[color_col] = grouped[value_col].apply(
+        #     lambda x: get_color_for_value(var_threshold, x)
+        # )
 
-        # Convert RGBA tuples to string format if needed 
-        grouped[color_col] = grouped[color_col].apply(
-            lambda c: f"rgba({c[0]}, {c[1]}, {c[2]}, {c[3]})" if isinstance(c, (list, tuple)) else c
-        )
+        # # Convert RGBA tuples to string format if needed 
+        # grouped[color_col] = grouped[color_col].apply(
+        #     lambda c: f"rgba({c[0]}, {c[1]}, {c[2]}, {c[3]})" if isinstance(c, (list, tuple)) else c
+        # )
 
         # Merge the results for the current timestamp into the combined GeoDataFrame
-        combined_gdf = combined_gdf.merge(grouped[['UNITID', value_col, color_col]],
+        # combined_gdf = combined_gdf.merge(grouped[['UNITID', value_col, color_col]],
+        #                                   on='UNITID', how='left')
+
+        combined_gdf = combined_gdf.merge(grouped[['UNITID', value_col]],
                                           on='UNITID', how='left')
 
     # Create a GeoDataFrame from combined_gdf (if not already one)
     combined_shapefile_gdf = gpd.GeoDataFrame(combined_gdf, geometry='geometry')
 
     # Define the output file path for a Shapefile
-    output_filename = f"{prefix}_{var_id}_combined.shp"
+    output_filename = f"{prefix}_{var_id}.shp"
     output_path = os.path.join(final_path, output_filename)
 
     # Save the combined GeoDataFrame to a Shapefile
@@ -191,16 +195,16 @@ def build_ct_layers():
 
     process_prcp(geojson_path, final_prefix, feature_id)
     process_tmin(geojson_path, final_prefix, feature_id)
-    # process_tmax(geojson_path, final_prefix, feature_id)
+    process_tmax(geojson_path, final_prefix, feature_id)
 
 def build_bg_layers():
     geojson_path = f"{raw_path}/tl_2023_17_bg_no_lake.json"
     feature_id = "GEOID"
     final_prefix = "bg"
 
-    process_prcp(geojson_path, final_prefix, feature_id)
-    process_tmin(geojson_path, final_prefix, feature_id)
-    # process_tmax(geojson_path, final_prefix, feature_id)
+    # process_prcp(geojson_path, final_prefix, feature_id)
+    # process_tmin(geojson_path, final_prefix, feature_id)
+    process_tmax(geojson_path, final_prefix, feature_id)
 
 def build_co_layers():
     geojson_path = f"{raw_path}/IL_BNDY_County_Py.json"
@@ -209,7 +213,7 @@ def build_co_layers():
 
     process_prcp(geojson_path, final_prefix, feature_id)
     process_tmin(geojson_path, final_prefix, feature_id)
-    # process_tmax(geojson_path, final_prefix, feature_id)
+    process_tmax(geojson_path, final_prefix, feature_id)
 
 
 

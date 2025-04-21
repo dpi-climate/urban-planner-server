@@ -3,9 +3,12 @@ import argparse
 from fastapi.staticfiles import StaticFiles
 
 from fastapi import FastAPI, Body,HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+
+import psycopg2
+import asyncpg
 
 
 from structure import Structure
@@ -34,6 +37,74 @@ structure.load_risk_df()
 structure.load_socio_layers()
 structure.load_stations_layer()
 print("Initialization complete.")
+
+
+async def get_geojson():
+    conn = await asyncpg.connect(
+        database="urban_planner_db",
+        user="postgres",
+        password="123",
+        host="localhost",
+        port="5432"
+    )
+
+    query = """
+        SELECT json_build_object(
+            'type', 'FeatureCollection',
+            'features', json_agg(
+                json_build_object(
+                    'type', 'Feature',
+                    'geometry', ST_AsGeoJSON(geom, 6)::json,  -- Geometry with limited precision
+                    'properties', json_build_object(
+                        'UNITID', unitid,
+                        'value', 1980
+                    )
+                )
+            )
+        )
+        FROM bg_prcp t;
+    """
+    geojson = await conn.fetchval(query)
+    await conn.close()
+
+    return geojson
+
+@app.get("/test_db")
+async def get_shapefile():
+    geojson = await get_geojson()
+    print("sending!!!")
+    return JSONResponse(content=geojson)
+
+# @app.get("/test_db")
+# def get_geojson():
+#     # Connect to PostgreSQL
+#     conn = psycopg2.connect(
+#         dbname="urban_planner_db",
+#         user="postgres",
+#         password="123",
+#         host="localhost",
+#         port="5432"
+#     )
+
+#     cursor = conn.cursor()
+
+#     # Use ST_AsGeoJSON to convert geometries into GeoJSON format
+#     cursor.execute("""
+#         SELECT json_build_object(
+#             'type', 'FeatureCollection',
+#             'features', json_agg(ST_AsGeoJSON(t.*)::json)
+#         )
+#         FROM bg_prcp_combined t;
+#     """)
+
+#     geojson = cursor.fetchone()[0]
+
+#     # Close connection
+#     cursor.close()
+#     conn.close()
+
+#     # return geojson
+#     return JSONResponse(content=geojson)
 
 
 @app.get("/boundary")
